@@ -1,41 +1,50 @@
-#from openai import OpenAI
 import json
-#from flask import Flask, request, jsonify
-#from flask_cors import CORS
 import csv
+import boto3
 import requests
+import os
+from application import app as application
 
-CHAT_API_URL = "http://127.0.0.1:5000/chat"
+# AWS S3 Configuration
+S3_BUCKET_NAME = "attacklensbucket"  
+CSV_FILE_NAME = "user_prompts"
 
-def read_prompts_from_csv():
+# API Endpoint (Replace with actual deployed URL)
+CHAT_API_URL = "https://127.0.0.1:5000/chat"
+
+# AWS Clients
+s3_client = boto3.client("s3")
+
+def read_prompts_from_s3():
     try:
-        FILE_PATH = "user_prompts.csv"
+        # Download CSV from S3 to /tmp/ (Lambda's temporary storage)
+        local_path = f"/tmp/{CSV_FILE_NAME}"
+        s3_client.download_file(S3_BUCKET_NAME, CSV_FILE_NAME, local_path)
 
-        # Read the CSV file and extract prompts
         prompts = []
-        with open(FILE_PATH, mode="r", encoding="utf-8") as file:
+        with open(local_path, mode="r", encoding="utf-8") as file:
             csv_reader = csv.reader(file)
-            next(csv_reader)  # Skip the header row (if any)
+            next(csv_reader, None)  # Skip header if exists
             for row in csv_reader:
                 if row:
                     prompts.append(row[0])          
         
         return prompts
     except Exception as e:
-        print(f"Error reading CSV: {str(e)}")
+        print(f"Error reading CSV from S3: {str(e)}")
         return []
 
 def lambda_handler(event, context):
-    # Read prompts from the CSV file
-    prompts = read_prompts_from_csv()
+    # Read prompts from S3
+    prompts = read_prompts_from_s3()
     
     if not prompts:
-        return {"statusCode": 400, "body": json.dumps({"error": "No prompts found in CSV."})}
+        return {"statusCode": 400, "body": json.dumps({"error": "No prompts found in S3 CSV."})}
 
     results = {}
     for prompt in prompts:
         try:
-            # Send request to Flask API
+            # Send request to external API
             response = requests.post(CHAT_API_URL, json={"prompt": prompt}, timeout=30)
             if response.status_code == 200:
                 results[prompt] = response.json().get("response", "No response received")
