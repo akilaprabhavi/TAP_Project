@@ -7,51 +7,6 @@ const ChatInterface = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
 
-  // const handleSendMessage = async () => {
-  //   if (!input.trim()) return;
-
-  //   const userMessage = { sender: "user", text: input };
-  //   setMessages([...messages, userMessage]); 
-
-  //   setInput(""); // Clear input field
-
-  //   try {
-  //     const response = await fetch("http://127.0.0.1:5000/chat", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({ prompt: input}),
-  //     });
-
-  //     const data = await response.json();
-  //     const botMessage = { sender: "assistant", text: data.response };
-  //     setMessages((prevMessages) => [...prevMessages, botMessage]);
-  //   } catch (error) {
-  //     console.error("Error fetching response:", error);
-  //   }
-  // };
-
-  // const handleAddMessage = async () => {
-  //   if (!input.trim()) return;
-    
-  //   try {
-  //     const response = await fetch("http://127.0.0.1:5000/save-to-csv", { 
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({ prompt: input }),
-  //     });
-  
-  //     const data = await response.json();
-  //     if (response.ok) {
-  //       alert(`Message saved to S3! File: ${data.file}`);
-  //     } else {
-  //       alert("Error saving message: " + data.error);
-  //     }
-  //   } catch (error) {
-  //     console.error("Error saving message:", error);
-  //     alert("Error saving message.");
-  //   }
-  // };
-
   const handleSendMessage = async () => {
     if (!input.trim()) return;
 
@@ -62,7 +17,7 @@ const ChatInterface = () => {
 
     try {
       //AWS-hosted Flask endpoint here
-      const response = await fetch("https://your-aws-api-endpoint.com/chat", {
+      const response = await fetch("https://wzmyg3e4e5ywcr3jkqbot46a6u0prbsy.lambda-url.us-east-1.on.aws/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: input}),
@@ -81,7 +36,7 @@ const ChatInterface = () => {
     
     try {
       // AWS-hosted Flask endpoint here for saving to S3
-      const response = await fetch("https://your-aws-api-endpoint.com/save-to-s3", { 
+      const response = await fetch("https://wzmyg3e4e5ywcr3jkqbot46a6u0prbsy.lambda-url.us-east-1.on.aws/save-to-s3", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: input }),
