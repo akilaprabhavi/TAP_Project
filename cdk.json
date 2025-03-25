@@ -1,0 +1,8 @@
+{
+  "app": "python my_cdk_stack.py",
+  "context": {
+    "aws-cdk:enableDiffNoFail": true,
+    "aws-cdk:default-account": 713881796790,
+    "aws-cdk:default-region": "us-east-1"
+  }
+}
