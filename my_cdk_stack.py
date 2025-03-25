@@ -14,6 +14,7 @@ from aws_cdk import (
 from constructs import Construct
 from aws_cdk.aws_lambda import FunctionUrlAuthType
 from aws_cdk.aws_lambda import Code, DockerImageCode
+from aws_cdk import aws_ecr as ecr
 
 class MyCdkStack(cdk.Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
@@ -25,6 +26,7 @@ class MyCdkStack(cdk.Stack):
         website_bucket = s3.Bucket(self, "WebsiteBucket",
             bucket_name="websitebucketakila",                  
             website_index_document="index.html",
+            website_error_document="index.html",
             block_public_access=s3.BlockPublicAccess(block_public_policy=False, restrict_public_buckets=False),
             public_read_access=True,
             removal_policy=RemovalPolicy.DESTROY, 
@@ -38,30 +40,46 @@ class MyCdkStack(cdk.Stack):
         )
 
 
-
-
         #------------------ BE deployment-----------------------
 
-        # # Lambda Function for Flask App       
-        # flask_lambda = _lambda.Function(self, "FlaskLambda",
-        #     runtime=_lambda.Runtime.PYTHON_3_12,
-        #     handler="application.handler",
-        #     code=_lambda.Code.from_asset("lambda", bundling={
-        #         "image": DockerImageCode.from_registry("public.ecr.aws/lambda/python:3.12"),
-        #         "command":[
-        #             "sh", "-c",
-        #             "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output"
-        #         ]
-        #     }),
-        #     timeout=Duration.seconds(30)  
-        # )
+          #IAM role for Lambda_function
+        self.lambda_role = iam.Role(
+            self, "LambdaExecutionRole",
+            role_name="MyLambdaExecutionRole", 
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+            ]
+        )
 
-        # # Create a Lambda Function URL
-        # function_url = flask_lambda.add_function_url(auth_type=FunctionUrlAuthType.NONE)
+        # Add Secrets Manager permission as an inline policy
+        self.lambda_role.add_to_policy(iam.PolicyStatement(
+            actions=["secretsmanager:GetSecretValue"],
+            resources=["*"] 
+        ))
+        
+        # Reference the existing ECR repository
+        repository = ecr.Repository.from_repository_name(self, "Repository", "cyber-sec-be-lambda")
+
+        # Define the Lambda function using the container image
+        flask_lambda = _lambda.DockerImageFunction(
+            self,
+            "FlaskLambda",
+            function_name="BELambdaFunction",
+            #handler="application.handler",
+            #runtime=_lambda.Runtime.PYTHON_3_12,
+            code=_lambda.DockerImageCode.from_image_asset("lambda/"),
+            role=self.lambda_role,
+            timeout=Duration.seconds(30),
+        )
+
+        # Create a Lambda Function URL(publicly accessible)
+        function_url = flask_lambda.add_function_url(auth_type=FunctionUrlAuthType.NONE)
        
-        # # CloudFormation Outputs
-        # CfnOutput(self, "LambdaPublicUrl", value=function_url.url, export_name="LambdaPublicUrl")
-        # CfnOutput(self, "S3WebsiteUrl", value=website_bucket.bucket_website_url, export_name="S3WebsiteUrl")
+
+        # CloudFormation Outputs
+        CfnOutput(self, "LambdaPublicUrl", value=function_url.url, export_name="LambdaPublicUrl")
+        CfnOutput(self, "S3WebsiteUrl", value=website_bucket.bucket_website_url, export_name="S3WebsiteUrl")
 
 
         # -----------------Other resources----------------------
@@ -75,17 +93,7 @@ class MyCdkStack(cdk.Stack):
                 removal_policy=cdk.RemovalPolicy.DESTROY, 
                 auto_delete_objects=True
             )
-
-        #IAM role for Lambda_function
-        self.lambda_role = iam.Role(
-            self, "LambdaExecutionRole",
-            role_name="MyLambdaExecutionRole", 
-            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
-            ]
-        )
-        
+                       
         # Lambda_function to execute predefined prompts
         self.lambda_function = _lambda.Function(
             self,
@@ -108,30 +116,7 @@ class MyCdkStack(cdk.Stack):
         # Add Lambda as the target of the EventBridge rule
         self.event_rule.add_target(targets.LambdaFunction(self.lambda_function))
 
-        #------------------handle predefined prompts-------------------
-
-        #  # Create Lambda Function to handle API requests
-        # self.chat_lambda = _lambda.Function(self, "save_prompt_lambda",
-        #     function_name="ChatLambda",
-        #     runtime=_lambda.Runtime.PYTHON_3_12,
-        #     handler="save_prompt_lambda.lambda_handler",
-        #     code=_lambda.Code.from_asset("lambda/"),
-        #     environment={
-        #         "BUCKET_NAME": self.website_bucket.bucket_name,
-        #     }
-        # )
-
-        # # Grant Lambda permissions to write to S3
-        # self.website_bucket.grant_write(self.chat_lambda)
-
-        # # Create API Gateway to expose the Lambda function
-        # self.api = apigw.LambdaRestApi(self, "ChatAPI",
-        #     handler=self.chat_lambda,
-        #     proxy=True
-        # )
-
-        # cdk.CfnOutput(self, "APIEndpoint", value=self.api.url)
-
+       
 app = cdk.App()
 MyCdkStack(app, "MyCdkStack")
 app.synth()
