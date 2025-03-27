@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Dashboard from './pages/dashboard';
 import Category from './pages/category-page';
-import Job from './pages/jobs-page';
+import AddPrompts from './pages/AddPrompts-page';
 
 const AppRouter = () => {
   return (
@@ -10,7 +10,7 @@ const AppRouter = () => {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/category" element={<Category />} />
-        <Route path="/job" element={<Job />} />
+        <Route path="/AddPrompts" element={<AddPrompts />} />
       </Routes>
     </Router>
   );
