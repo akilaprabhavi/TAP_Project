@@ -3,10 +3,10 @@ import csv
 import boto3
 import requests
 import os
-from config.config import CSV_FILE_NAME, PROMPT_BUCKET_NAME
+from config import CSV_FILE_NAME, PROMPT_BUCKET_NAME
 
 # API Endpoint (Replace with actual deployed URL)
-CHAT_API_URL = "https://wzmyg3e4e5ywcr3jkqbot46a6u0prbsy.lambda-url.us-east-1.on.aws/chat"
+CHAT_API_URL = "https://27eimt2ok2inv62obguq22krsa0ruaiv.lambda-url.us-east-1.on.aws/chat"
 
 # AWS Clients
 s3_client = boto3.client("s3")

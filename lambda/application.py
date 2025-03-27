@@ -8,6 +8,7 @@ import boto3
 import json
 import awsgi2
 import io
+from time import sleep
 from config import CSV_FILE_NAME, PROMPT_BUCKET_NAME
 
 # Load environment variables
@@ -16,11 +17,13 @@ from config import CSV_FILE_NAME, PROMPT_BUCKET_NAME
 def get_secret(secret_name):
     client = boto3.client('secretsmanager', region_name="us-east-1")  
     response = client.get_secret_value(SecretId=secret_name)
+    print(response)
     secret = json.loads(response['SecretString'])
-    return secret.get("OPENAI_API_KEY")
+    print(secret)
+    return secret.get("OPENAI_API_KEY_NEW")
 
 # Retrieve API key securely
-api_key = get_secret("OPENAI_API_KEY")
+api_key = get_secret("OPENAI_API_KEY_NEW")
 
 # Initialize OpenAI Client
 client = OpenAI(api_key=api_key)
@@ -106,6 +109,7 @@ def chat():
         return jsonify({"error": "No prompt provided"}), 400
     
     corrected_input = correct_spelling_with_ai(user_input)
+    sleep(3)
 
     messages = [
         {"role": "system", "content":  dynamic_persona(corrected_input)},
