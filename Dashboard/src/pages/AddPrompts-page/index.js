@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Job = () => {
+const AddPrompts = () => {
   return (
     <div id="sidebar" className="sidenav">
         <div className="bg-primary">
@@ -10,4 +10,4 @@ const Job = () => {
   );
 };
 
-export default Job;
+export default AddPrompts;
