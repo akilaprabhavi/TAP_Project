@@ -10,5 +10,6 @@ SCHEDULE_EXPRESSION = "cron(44 10 * * ? *)"
 PROMPT_BUCKET_NAME = "promptbucketakila"
 CSV_FILE_NAME = "user_prompts"
 IAM_ROLE_NAME = "LambdaS3AccessRole"
+DYNAMO_DB_TABLE="AttackVectors"
 
 
