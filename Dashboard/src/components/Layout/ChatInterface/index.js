@@ -11,16 +11,16 @@ const ChatInterface = () => {
     if (!input.trim()) return;
 
     const userMessage = { sender: "user", text: input };
-    setMessages([...messages, userMessage]); 
+    setMessages([...messages, userMessage]);
 
     setInput(""); // Clear input field
 
     try {
       //AWS-hosted Flask endpoint here
-      const response = await fetch("https://27eimt2ok2inv62obguq22krsa0ruaiv.lambda-url.us-east-1.on.aws/chat", {
+      const response = await fetch("https://ulaq2p5pomaufimwt3pfxr3tpa0szfux.lambda-url.us-east-1.on.aws/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: input}),
+        body: JSON.stringify({ prompt: input }),
       });
 
       const data = await response.json();
@@ -33,18 +33,18 @@ const ChatInterface = () => {
 
   const handleAddMessage = async () => {
     if (!input.trim()) return;
-    
+
     try {
       // AWS-hosted Flask endpoint here for saving to S3
-      const response = await fetch("https://27eimt2ok2inv62obguq22krsa0ruaiv.lambda-url.us-east-1.on.aws/save-to-s3", { 
+      const response = await fetch("https://ulaq2p5pomaufimwt3pfxr3tpa0szfux.lambda-url.us-east-1.on.aws/save-to-s3", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: input }),
       });
-  
+
       const data = await response.json();
       if (response.ok) {
-        alert(`Message saved to S3! File: ${data.file}`);
+        alert(`Message saved to S3! File. ${data.file_name}`);
       } else {
         alert("Error saving message: " + data.error);
       }
@@ -59,7 +59,7 @@ const ChatInterface = () => {
       <div className="chat-box">
         {messages.map((msg, index) => (
           <div key={index} className={`message ${msg.sender}`}>
-           {msg.sender === "assistant" ? (
+            {msg.sender === "assistant" ? (
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
             ) : (
               <span>{msg.text}</span>
