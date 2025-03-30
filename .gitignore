@@ -1,5 +1,7 @@
 node_modules/
 cdk.out/
+venv/
+__pycache__/
 
 # CDK asset staging directory
 .cdk.staging
