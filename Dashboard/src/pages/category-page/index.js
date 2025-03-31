@@ -2,46 +2,57 @@ import React, { useState } from 'react';
 import './category-page.css';
 
 const AttackVectors = () => {
+  // State to store threat data
+  const [threatData, setThreatData] = useState([
+    { attackVector: 'Phishing Email' },
+    { attackVector: 'Ransomware' },
+    { attackVector: 'Malware' },
+    { attackVector: 'denial-of-service (DoS)' },
+    { attackVector: 'Supply Chain Attack' },
+    { attackVector: 'Zero-day Exploits' },
+    { attackVector: 'SQL Injection' },
+  ]);
 
-  /*Sample data for cyber threat intelligence*/
-  const threatData = [
-
-    { attackvector: 'Phishing'},
-    { attackvector: 'Ransomware'},
-    { attackvector: 'malware',},
-    { attackvector: 'denial-of-service (DoS)'},
-    { attackvector: 'supply chain attacks'},
-    { attackvector: 'zero-day exploits'},
-    { attackvector: 'SQL injection'},
-  ];
-
-  const [loading, setLoading] = useState(false);
+  const [loadingStates, setLoadingStates] = useState({});
   const [error, setError] = useState(null);
 
-  // Function to fetch data from backend API
+  // Function to fetch data and update the table
   const fetchThreatData = async (attackVector) => {
-    setLoading(true);
-    setError(null); // Reset any previous errors
+  setLoadingStates((prevState) => ({
+    ...prevState,
+    [attackVector]: true, // Set loading for this specific attack vector
+  }));
+  setError(null);
 
     try {
-      // Send GET request with the attackvector as a query parameter
-      const response = await fetch(`https://ulaq2p5pomaufimwt3pfxr3tpa0szfux.lambda-url.us-east-1.on.aws/update?attackvector=${encodeURIComponent(AttackVectors)}`, {
+      const response = await fetch(`https://ulaq2p5pomaufimwt3pfxr3tpa0szfux.lambda-url.us-east-1.on.aws/update?attackVector=${encodeURIComponent(attackVector)}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Data for attackvector:', data);  // You can handle this data as needed
-        alert(`Data fetched for attackvector: ${attackVector}`);
-      } else {
-        setError('Error fetching data');
+      if (!response.ok) {
+        throw new Error('Failed to fetch data');
       }
+
+      const data = await response.json();
+      console.log('Data for attackvector:', data);
+
+      // Update threatData with the new information
+      setThreatData((prevData) =>
+        prevData.map((threat) =>
+          threat.attackVector === attackVector
+            ? { ...threat, ...data } // Merge fetched data into existing row
+            : threat
+        )
+      );
     } catch (err) {
       console.error('Error fetching data:', err);
-      setError('Error fetching data');
+      setError(`Error fetching data: ${err.message}`);
     } finally {
-      setLoading(false);
+      setLoadingStates((prevState) => ({
+        ...prevState,
+        [attackVector]: false, // Reset loading for this specific attack vector
+      }));
     }
   };
 
@@ -60,35 +71,21 @@ const AttackVectors = () => {
           </div>
         </div>
       </div>
+
       <div className="row">
         <div className="col-sm-12">
           <h1 className="main-heading">Attack Vector Monitoring</h1>
+          {error && <p className="error-message">{error}</p>}
         </div>
       </div>
-      {/* <div className="row mt-4 data-filter p-0 m-0">
-      <div className="col-sm-3 data-filtersub">
-        <p className="px-3 m-0"><b>Data Filters</b></p>
-      </div>
-      <div className="col-sm-3 data-filtersub">
-        <p className="px-3 m-0"><b>Data Filters</b></p>
-      </div>
-      <div className="col-sm-3 data-filtersub">
-        <p className="px-3 m-0"><b>Data Filters</b></p>
-      </div>
-      <div className="col-sm-3 data-filtersub">
-        <p className="px-3 m-0"><b>Data Filters</b></p>
-      </div>
-    </div> */}
 
-
-      {/* Cyber Threat Data Table */}
       <div className="row mt-5">
         <div className="col-sm-12">
           <h2 className="table-title">Cyber Threat Intelligence</h2>
           <table className="table table-striped">
             <thead>
               <tr>
-                <th>Attack Vactor</th>
+                <th>Attack Vector</th>
                 <th>TTPs (Tactics, Techniques, Procedures)</th>
                 <th>Indicators of Compromise (IoCs)</th>
                 <th>Common Vulnerabilities and Exposures (CVEs)</th>
@@ -101,14 +98,22 @@ const AttackVectors = () => {
             <tbody>
               {threatData.map((threat, index) => (
                 <tr key={index}>
-                  <td>{threat.attackvector}</td>
-                  <td>{threat.ttps}</td>
-                  <td>{threat.iocs}</td>
-                  <td>{threat.cves}</td>
-                  <td>{threat.attacktimelines}</td>
-                  <td>{threat.IncReports}</td>
-                  <td>{threat.feed}</td>
-                  <td><button className="btn btn-primary">Update</button></td>
+                  <td>{threat.attackVector}</td>
+                  <td>{threat.ttps }</td>
+                  <td>{threat.iocs }</td>
+                  <td>{threat.cve }</td>
+                  <td>{threat.attackTimeline}</td>
+                  <td>{threat.incidentReport}</td>
+                  <td>{threat.threatFeed}</td>
+                  <td>
+                  <button
+                      className="btn btn-primary"
+                      onClick={() => fetchThreatData(threat.attackVector)}
+                      disabled={loadingStates[threat.attackVector]} // Disable only the button of the row being updated
+                    >
+                      {loadingStates[threat.attackVector] ? 'Updating...' : 'Update'}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -118,4 +123,5 @@ const AttackVectors = () => {
     </div>
   );
 };
+
 export default AttackVectors;

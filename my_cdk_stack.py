@@ -70,7 +70,14 @@ class MyCdkStack(cdk.Stack):
                 "arn:aws:s3:::promptbucketakila/*"
             ]
         ))
-                
+
+        # Allow Lambda to get items from DynamoDB
+        self.lambda_role.add_to_policy(iam.PolicyStatement(
+            actions=["dynamodb:GetItem"],
+            resources=["arn:aws:dynamodb:us-east-1:713881796790:table/AttackVectors"]
+        ))
+
+
         # Reference the existing ECR repository
         repository = ecr.Repository.from_repository_name(self, "Repository", "cyber-sec-be-lambda")
 

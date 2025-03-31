@@ -172,14 +172,12 @@ def update_attack_vector():
     # Extract attackvector from the query parameter
     attackvector = request.args.get('attackVector')
 
-    print (attackvector)
-
     if not attackvector:
         return jsonify({'error': 'Missing attackvector parameter'}), 400
 
     # Query the DynamoDB table for the specific attackvector
     response = table.get_item(
-        Key={'attackvector': attackvector}  # Query by the primary key (attackvector)
+        Key={'attackVector': attackvector}  # Query by the primary key (attackvector)
     )
 
     # If the attackvector exists, return its data
@@ -188,6 +186,19 @@ def update_attack_vector():
     else:
         return jsonify({'error': 'Attack Vector not found'}), 404
 
+@app.route('/getAllThreats', methods=['GET'])
+def get_all_threats():
+    try:
+        # Scan the table to retrieve all records
+        response = table.scan()
+        
+        # Extract items from response
+        threats = response.get('Items', [])
+        
+        return jsonify(threats), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/get-prompts-results", methods=["GET"])
 def get_prompts_and_results():
