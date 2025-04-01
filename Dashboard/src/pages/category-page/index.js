@@ -109,7 +109,7 @@ const AttackVectors = () => {
                   <button
                       className="btn btn-primary"
                       onClick={() => fetchThreatData(threat.attackVector)}
-                      disabled={loadingStates[threat.attackVector]} // Disable only the button of the row being updated
+                      disabled={loadingStates[threat.attackVector]} 
                     >
                       {loadingStates[threat.attackVector] ? 'Updating...' : 'Update'}
                     </button>

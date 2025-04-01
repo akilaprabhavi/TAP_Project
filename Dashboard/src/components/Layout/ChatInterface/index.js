@@ -31,29 +31,6 @@ const ChatInterface = () => {
     }
   };
 
-  const handleAddMessage = async () => {
-    if (!input.trim()) return;
-
-    try {
-      // AWS-hosted Flask endpoint here for saving to S3
-      const response = await fetch("https://ulaq2p5pomaufimwt3pfxr3tpa0szfux.lambda-url.us-east-1.on.aws/save-to-s3", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: input }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        alert(`Message saved to S3! File. ${data.file_name}`);
-      } else {
-        alert("Error saving message: " + data.error);
-      }
-    } catch (error) {
-      console.error("Error saving message:", error);
-      alert("Error saving message.");
-    }
-  };
-
   return (
     <div className="chat-container">
       <div className="chat-box">
@@ -76,7 +53,6 @@ const ChatInterface = () => {
           onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
         />
         <button onClick={handleSendMessage}>Send</button>
-        <button onClick={handleAddMessage}>Add</button>
       </div>
     </div>
   );

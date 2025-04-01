@@ -118,6 +118,82 @@
     display: none !important;
 }
 
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    max-width: flex;
+    margin: auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+}
+
+  
+.input-area {
+    display: flex;
+    padding: 10px;
+    background: #f8f9fa;
+    border-top: 1px solid #ddd;
+}
+  
+.input-area input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+  
+.input-area button {
+    padding: 10px;
+    margin-left: 10px;
+    border: none;
+    background: #007bff;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.time-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 15px;
+  }
+  
+  .time-selector label {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+  }
+  
+  .time-selector input {
+    padding: 5px 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background: #f9f9f9;
+    cursor: pointer;
+  }
+  
+  .time-selector input:hover {
+    border-color: #007bff;
+  }
+  
+  .time-selector button {
+    padding: 5px 12px;
+    font-size: 14px;
+    color: #fff;
+    background: #007bff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  .time-selector button:hover {
+    background: #0056b3;
+  }
+
 @media only screen and (min-width: 320px) and (max-width: 480px) {
     .dashboard{
         padding: 20px !important;
@@ -181,6 +257,5 @@
     .fst-normal.db {
         font-size: 12px !important;
     }
-
-   
+       
 }

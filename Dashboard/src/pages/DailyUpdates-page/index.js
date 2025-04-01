@@ -7,6 +7,8 @@ const DailyUpdates = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [input, setInput] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
 
   useEffect(() => {
     fetch('https://ulaq2p5pomaufimwt3pfxr3tpa0szfux.lambda-url.us-east-1.on.aws/get-prompts-results')
@@ -24,21 +26,31 @@ const DailyUpdates = () => {
       });
   }, []);
 
+  const handleAddMessage = async () => {
+    if (!input.trim()) return;
+
+    try {
+      // AWS-hosted Flask endpoint here for saving to S3
+      const response = await fetch("https://ulaq2p5pomaufimwt3pfxr3tpa0szfux.lambda-url.us-east-1.on.aws/save-to-s3", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: input }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        alert(`Message saved to S3! File. ${data.file_name}`);
+      } else {
+        alert("Error saving message: " + data.error);
+      }
+    } catch (error) {
+      console.error("Error saving message:", error);
+      alert("Error saving message.");
+    }
+  };
+
   return (
-    <div id="dashboard" className="dashboard">
-      <div className='browse db'>
-        <div className='row'>
-          <div className='col-9'>
-            <div className="db-header">
-              <p className="custom-header db m-0">Global Trade Explorer</p>
-              <p className="fst-normal db m-0">Visualize flows of trade around the world</p>
-            </div>
-          </div>
-          <div className='col-3'>
-            <button className='custom-button db'>Browse</button>
-          </div>
-        </div>
-      </div>
+    <div id="dashboard" className="dashboard">      
       <div className="row">
         <div className="col-sm-12">
           <h1 className="main-heading">Your daily updates</h1>
@@ -48,6 +60,27 @@ const DailyUpdates = () => {
       <div className="row mt-5">
         <div className="col-sm-12">
           <h2 className="table-title">Cyber Threat Intelligence</h2>
+            <div className="chat-container">
+              <div className="input-area">
+                <input
+                  type="text"
+                  placeholder="Add prompts to daily execution list.."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}                 
+                />                
+                <button onClick={handleAddMessage}>Add</button>
+              </div>
+              {/* <div></div>
+              <div className="time-selector">
+                <label> Set the time to execute the prompts   : </label>
+                <input 
+                  type="time" 
+                  value={selectedTime} 
+                  onChange={(e) => setSelectedTime(e.target.value)} 
+                />
+                <button onClick={handleSaveTime}>Save Time</button>
+              </div> */}
+            </div>            
           {loading ? (
             <p>Loading data...</p>
           ) : error ? (
@@ -71,7 +104,7 @@ const DailyUpdates = () => {
                       <td>
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.result}</ReactMarkdown>
                       </td>
-                      <td>{item.last_updated ? new Date(item.last_updated).toLocaleString('en-US', { timeZone: 'Australia/Sydney' }) : 'N/A'}</td>
+                      <td>{item.last_updated ? new Date(item.last_updated).toLocaleString('en-AU') : 'N/A'}</td>
                     </tr>
                   ))
                 )}
