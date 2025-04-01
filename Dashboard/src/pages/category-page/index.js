@@ -58,21 +58,7 @@ const AttackVectors = () => {
 
   return (
     <div id="dashboard" className="dashboard">
-      <div className='browse db'>
-        <div className='row'>
-          <div className='col-9'>
-            <div className="db-header">
-              <p className="custom-header db m-0">Global Trade Explorer</p>
-              <p className="fst-normal db m-0">Visualize flows of trade around the world</p>
-            </div>
-          </div>
-          <div className='col-3'>
-            <button className='custom-button db'>Browse</button>
-          </div>
-        </div>
-      </div>
-
-      <div className="row">
+         <div className="row">
         <div className="col-sm-12">
           <h1 className="main-heading">Attack Vector Monitoring</h1>
           {error && <p className="error-message">{error}</p>}
