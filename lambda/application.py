@@ -30,9 +30,9 @@ client = OpenAI(api_key=api_key)
 
 # Initialize flask app
 app = Flask(__name__)
-CORS(app)  # cors- enable FE to make API calls to flask server
+CORS(app)  
 
-# Initialize DynamoDB client
+# Initialize a DynamoDB client
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 table = dynamodb.Table('AttackVectors')  # Assuming the table name is 'AttackVectors'
 
@@ -58,7 +58,7 @@ def refine_prompt(user_input):
     else:
         return f"Reply me\nUser: {user_input}\nAssistant:"
 
-# Cybersecurity keyword categories
+# # Cybersecurity keyword categories
 keyword_categories = {
     "attack vectors": ["phishing", "malware", "ransomware", "DoS", "supply chain", "zero-day", "SQL injection"],
     "ttp": ["tactics", "techniques", "procedures", "MITRE ATT&CK", "credential dumping", "spear phishing"],
@@ -82,6 +82,7 @@ def dynamic_persona(user_input):
                 return persona_base.format(category=category, specifics=specifics)
 
     return "You are a Cyber Threat Analyst, providing expert insights on cybersecurity threats, vulnerabilities, and defenses."
+
 
 #Uses GPT-4o-mini to correct spelling mistakes while preserving technical terms.
 def correct_spelling_with_ai(user_input):
