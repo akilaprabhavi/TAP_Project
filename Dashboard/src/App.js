@@ -18,8 +18,8 @@ class App extends Component {
 
   menuItems = [
       { label: <><FaHome /> Dashboard</>, link: '/' },
-      { label: <><MdAddToPhotos /> Add Prompts</>, link: '/prompt' },
-      { label: <><AiOutlineSchedule /> Schedule</>,link: '/schedule' },
+      { label: <><MdAddToPhotos /> Daily Updates</>, link: '/dailyUpdates' },
+      { label: <><AiOutlineSchedule /> Attack Vectors</>,link: '/attackVectors' },
       { label: <><FaHistory /> History</>, link: '/history' },
       { label: <><FaChartLine /> Analytics</>, link: '/analytics' },
       { label: <><FaCog /> Settings</>, link: '/settings' },

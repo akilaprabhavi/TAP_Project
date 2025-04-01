@@ -57,7 +57,27 @@ class MyCdkStack(cdk.Stack):
             actions=["secretsmanager:GetSecretValue"],
             resources=["*"] 
         ))
-        
+
+        # Allow Lambda to put, get, and list objects in the S3 bucket
+        self.lambda_role.add_to_policy(iam.PolicyStatement(
+            actions=[
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:ListBucket"
+            ],
+            resources=[
+                "arn:aws:s3:::promptbucketakila",
+                "arn:aws:s3:::promptbucketakila/*"
+            ]
+        ))
+
+        # Allow Lambda to get items from DynamoDB
+        self.lambda_role.add_to_policy(iam.PolicyStatement(
+            actions=["dynamodb:GetItem"],
+            resources=["arn:aws:dynamodb:us-east-1:713881796790:table/AttackVectors"]
+        ))
+
+
         # Reference the existing ECR repository
         repository = ecr.Repository.from_repository_name(self, "Repository", "cyber-sec-be-lambda")
 
@@ -101,7 +121,7 @@ class MyCdkStack(cdk.Stack):
             function_name="ThreatAnalysisLambda",
             runtime=_lambda.Runtime.PYTHON_3_12,
             handler="scheduledExecute.lambda_handler",
-            code=_lambda.Code.from_asset("lambda/"),
+            code=_lambda.Code.from_asset("EBlambda/"),
             role=self.lambda_role,
             timeout=cdk.Duration.seconds(30)
         )
