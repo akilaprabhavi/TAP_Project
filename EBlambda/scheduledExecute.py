@@ -17,7 +17,6 @@ def lambda_handler(event, context):
         response = s3_client.list_objects_v2(Bucket=PROMPT_BUCKET_NAME)
         
         if "Contents" not in response:
-            print("No files found in S3 bucket.")
             return {"statusCode": 400, "body": json.dumps({"error": "No prompt files found."})}
 
         results = {}
