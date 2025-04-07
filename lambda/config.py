@@ -12,4 +12,6 @@ CSV_FILE_NAME = "user_prompts"
 IAM_ROLE_NAME = "LambdaS3AccessRole"
 DYNAMO_DB_TABLE="AttackVectors"
 
-
+AV_URl="https://otx.alienvault.com/api/v1"
+PC_REGION="us-east-1"
+INDEX_N= "alienvault-threats"

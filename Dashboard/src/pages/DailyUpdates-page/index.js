@@ -3,13 +3,14 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import './DailyUpdates-page.css';
 
+
 const DailyUpdates = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [input, setInput] = useState("");
-  const [selectedTime, setSelectedTime] = useState("");
 
+  //Fetching prompts and results from aws lambda
   useEffect(() => {
     fetch('https://ulaq2p5pomaufimwt3pfxr3tpa0szfux.lambda-url.us-east-1.on.aws/get-prompts-results')
       .then(response => response.json())
@@ -40,6 +41,13 @@ const DailyUpdates = () => {
       const data = await response.json();
       if (response.ok) {
         alert(`Message saved to S3! File. ${data.file_name}`);
+
+        setData(prevData => [
+        ...prevData,
+        { prompt: input, result: "Processing...", last_updated: new Date().toISOString() }
+      ]);
+
+      setInput("");  // Clear input field
       } else {
         alert("Error saving message: " + data.error);
       }

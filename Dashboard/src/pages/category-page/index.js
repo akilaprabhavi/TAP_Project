@@ -21,8 +21,8 @@ const AttackVectors = () => {
   setLoadingStates((prevState) => ({
     ...prevState,
     [attackVector]: true, // Set loading for this specific attack vector
-  }));
-  setError(null);
+    }));
+    setError(null);
 
     try {
       const response = await fetch(`https://ulaq2p5pomaufimwt3pfxr3tpa0szfux.lambda-url.us-east-1.on.aws/update?attackVector=${encodeURIComponent(attackVector)}`, {
@@ -35,13 +35,12 @@ const AttackVectors = () => {
       }
 
       const data = await response.json();
-      console.log('Data for attackvector:', data);
-
+      
       // Update threatData with the new information
       setThreatData((prevData) =>
         prevData.map((threat) =>
           threat.attackVector === attackVector
-            ? { ...threat, ...data } // Merge fetched data into existing row
+            ? { ...threat, ...data } 
             : threat
         )
       );
