@@ -7,30 +7,57 @@ import json
 import awsgi2
 from time import sleep
 import datetime
-from config import PROMPT_BUCKET_NAME
+from config import PROMPT_BUCKET_NAME, PC_REGION, INDEX_N
 import uuid
+from pinecone import Pinecone
 
-# Load environment variables
-#load_dotenv()
-
-def get_secret(secret_name):
+# Load secret key
+def get_secret(secret_name, key_name):
     client = boto3.client('secretsmanager', region_name="us-east-1")  
     response = client.get_secret_value(SecretId=secret_name)
     secret = json.loads(response['SecretString'])
-    return secret.get("OPENAI_API_KEY_NEW")
+    return secret.get(key_name)
 
 # Retrieve API key securely
-api_key = get_secret("OPENAI_API_KEY_NEW")
+api_key = get_secret("OPENAI_API_KEY_NEW","OPENAI_API_KEY_NEW")
 
 # Initialize OpenAI Client
 client = OpenAI(api_key=api_key)
 
-# Initialize client
-#client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 # Initialize flask app
 app = Flask(__name__)
-CORS(app)  
+CORS(app) 
+
+# === Pinecone Setup ===
+PINECONE_REGION = PC_REGION
+INDEX_NAME = INDEX_N
+DIMENSION = 1536 
+
+# Retrieve pinecone API key securely
+pc_api_key = get_secret("PINECONE_API_KEY","PINECONE_API_KEY")
+
+# Initialize pinecone client
+pc = Pinecone(api_key=pc_api_key)
+
+index = pc.Index(INDEX_NAME)
+
+def get_embedding(text):
+    response = client.embeddings.create(
+        model="text-embedding-3-small",  # or your preferred model
+        input=[text]
+    )
+    return response.data[0].embedding
+
+def retrieve_context_from_pinecone(user_query, top_k=5):
+    embedding = get_embedding(user_query)
+    result = index.query(vector=embedding, top_k=top_k, include_metadata=True)
+    
+    # Join metadata text fields (assuming you stored your data in "text" metadata)
+    context_chunks = [match['metadata']['description'] for match in result['matches'] if 'description' in match['metadata']]
+    # print([match['metadata'] for match in result['matches']])
+    # print(context_chunks) 
+    return "\n---\n".join(context_chunks)
+    
 
 # Initialize a DynamoDB client
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
@@ -112,8 +139,16 @@ def chat():
     corrected_input = correct_spelling_with_ai(user_input)
     sleep(3)
     
+    # messages = [
+    #     {"role": "system", "content":  dynamic_persona(corrected_input)},
+    #     {"role": "user", "content": refine_prompt(corrected_input)}
+    # ]
+
+    pinecone_context = retrieve_context_from_pinecone(corrected_input)
+
     messages = [
-        {"role": "system", "content":  dynamic_persona(corrected_input)},
+        {"role": "system", "content": dynamic_persona(corrected_input)},
+        {"role": "system", "content": f"Here is relevant context: Use this to answer the question. Provide the content highlighting the attack vectors, TTP's, IoCs, CVEs, attack timelines, any incident reports, and the feed data. Try ti include time values as well.\n{pinecone_context}"},
         {"role": "user", "content": refine_prompt(corrected_input)}
     ]
     
@@ -222,7 +257,6 @@ def get_prompts_and_results():
         print(f"Error fetching prompts and results: {str(e)}")
         return []
 
-  
 def handler(event, context):
     return awsgi2.response(app, event, context)
 

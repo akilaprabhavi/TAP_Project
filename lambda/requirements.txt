@@ -4,4 +4,5 @@ Flask
 awsgi2
 flask_cors
 openai
+pinecone
 
