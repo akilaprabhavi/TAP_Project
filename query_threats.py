@@ -1,4 +1,4 @@
-from db_handler import DatabaseHandler
+from dynamodb_handler import DynamoDBHandler
 
 def display_pulses(pulses):
     """
@@ -14,7 +14,7 @@ def display_pulses(pulses):
     print("\n")
 
 def main():
-    db_handler = DatabaseHandler()
+    db_handler = DynamoDBHandler()
     db_handler.connect()
 
     while True:

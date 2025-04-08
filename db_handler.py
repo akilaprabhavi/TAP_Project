@@ -31,45 +31,66 @@ class DatabaseHandler:
                 author_name TEXT,
                 created TIMESTAMP,
                 modified TIMESTAMP,
-                tlp TEXT
+                tlp TEXT,
+                attack_vector TEXT,  -- AI-Generated Attack Vector
+                mitre_ttps TEXT,      -- AI-Generated MITRE ATT&CK TTPs
+                cves TEXT             -- AI-Generated CVEs
             )
         ''')
         self.conn.commit()
 
-    def insert_pulse(self, pulse: dict):
+    def insert_or_update_pulse(self, pulse: dict):
         """
-        Insert or update a pulse record in the database.
+        Insert or update a pulse record based on modified timestamp.
         Args:
             pulse: A dictionary containing pulse information.
         """
         cursor = self.conn.cursor()
-        try:
-            cursor.execute('''
-                INSERT OR REPLACE INTO pulses (id, name, description, author_name, created, modified, tlp)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                pulse.get("id"),
-                pulse.get("name"),
-                pulse.get("description"),
-                pulse.get("author", {}).get("name"),
-                pulse.get("created"),
-                pulse.get("modified"),
-                pulse.get("tlp", "white")  # Default to 'white' if not specified
-            ))
-            self.conn.commit()
-        except sqlite3.Error as e:
-            print(f"Database error: {e}")
+
+        # Check if pulse exists and its last modified timestamp
+        cursor.execute("SELECT modified FROM pulses WHERE id = ?", (pulse.get("id"),))
+        existing = cursor.fetchone()
+
+        if existing and existing[0] == pulse.get("modified"):
+            return  # No update needed if nothing has changed
+
+        # Insert or update the pulse
+        cursor.execute('''
+            INSERT OR REPLACE INTO pulses (id, name, description, author_name, created, modified, tlp)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            pulse.get("id"),
+            pulse.get("name"),
+            pulse.get("description"),
+            pulse.get("author", {}).get("name"),
+            pulse.get("created"),
+            pulse.get("modified"),
+            pulse.get("tlp", "white")
+        ))
+        self.conn.commit()
+
+    def update_pulse_with_analysis(self, pulse_id, attack_vector, mitre_ttps, cves):
+        """
+        Updates a pulse with AI-generated threat classification.
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            UPDATE pulses 
+            SET attack_vector = ?, mitre_ttps = ?, cves = ?
+            WHERE id = ?
+        ''', (attack_vector, mitre_ttps, cves, pulse_id))
+        self.conn.commit()
 
     def fetch_all_pulses(self):
         """
         Retrieve all pulses stored in the database.
         Returns:
-        A list of pulse records.
+            A list of pulse records.
         """
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM pulses")
         return cursor.fetchall()
-    
+
     def fetch_recent_pulses(self, limit=5):
         """
         Retrieve the most recent cyber threats from the database.
@@ -82,14 +103,17 @@ class DatabaseHandler:
         cursor.execute("SELECT * FROM pulses ORDER BY created DESC LIMIT ?", (limit,))
         return cursor.fetchall()
 
-def search_pulses(self, keyword):
-    """
-    Search for pulses related to a specific keyword in name or description.
-    Args:
-        keyword (str): The search term to filter threats.
-    Returns:
-        A list of matching pulse records.
-    """
-    cursor = self.conn.cursor()
-    cursor.execute("SELECT * FROM pulses WHERE name LIKE ? OR description LIKE ?", (f"%{keyword}%", f"%{keyword}%"))
-    return cursor.fetchall()
+    def search_pulses(self, keyword):
+        """
+        Search for pulses related to a specific keyword in name or description.
+        Args:
+            keyword (str): The search term to filter threats.
+        Returns:
+            A list of matching pulse records.
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT * FROM pulses WHERE name LIKE ? OR description LIKE ?",
+            (f"%{keyword}%", f"%{keyword}%")
+        )
+        return cursor.fetchall()
