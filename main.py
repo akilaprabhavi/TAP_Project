@@ -2,26 +2,23 @@ from alienvault_api import AlienVaultAPI
 from dynamodb_handler import DynamoDBHandler
 
 def main():
-    av_api = AlienVaultAPI()
-
-    # Fetch all subscribed pulses with pagination
-    try:
-        pulses = av_api.get_all_subscribed_pulses()
-        print(f"Retrieved {len(pulses)} pulses from the OTX API.")
-    except Exception as e:
-        print(f"Failed to fetch pulses: {e}")
-        return
-
-    # Connect to DynamoDB
     db_handler = DynamoDBHandler()
 
-    count_updated = 0
+    print("Welcome to the Threat Intelligence Search Tool!\n")
+    while True:
+        keyword = input("Enter keyword to search for (or 'exit' to quit): ").strip()
+        if keyword.lower() == 'exit':
+            break
 
-    for pulse in pulses:
-        db_handler.insert_or_update_pulse(pulse)
-        count_updated += 1
+        results = db_handler.search_pulses(keyword)
+        if not results:
+            print("No matching threats found.\n")
+        else:
+            print(f"\nFound {len(results)} matching threat(s):\n")
+            for pulse in results:
+                print(f"- {pulse.get('name')} (TTPs: {pulse.get('mitre_ttps')}, CVEs: {pulse.get('cves')})")
+            print("\n")
 
-    print(f"{count_updated} pulses inserted or updated successfully.")
 
 if __name__ == "__main__":
     main()

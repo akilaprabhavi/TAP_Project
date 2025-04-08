@@ -9,13 +9,21 @@ def display_pulses(pulses):
         return
 
     for pulse in pulses:
-        print(f"\n Threat: {pulse[1]}\n Description: {pulse[2]}\n Author: {pulse[3]}\n"
-              f" Created: {pulse[4]}\n TLP Level: {pulse[6]}")
+        print(f"""
+    Threat: {pulse.get('name')}
+    Description: {pulse.get('description')}
+    Author: {pulse.get('author_name')}
+    Created: {pulse.get('created')}
+    Modified: {pulse.get('modified')}
+    TLP: {pulse.get('tlp')}
+    Attack Vector: {pulse.get('attack_vector')}
+    MITRE TTPs: {pulse.get('mitre_ttps')}
+    CVEs: {pulse.get('cves')}
+        """)
     print("\n")
 
 def main():
     db_handler = DynamoDBHandler()
-    db_handler.connect()
 
     while True:
         user_query = input("\nAsk about cyber threats (or type 'exit' to quit): ").strip().lower()
@@ -32,7 +40,6 @@ def main():
 
         display_pulses(pulses)
 
-    db_handler.conn.close()
-
 if __name__ == "__main__":
     main()
+
