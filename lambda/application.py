@@ -10,6 +10,12 @@ import datetime
 from config import PROMPT_BUCKET_NAME, PC_REGION, INDEX_N, openAI_Secret_name, openAI_key_name,PC_Secret_name,PC_key_name
 import uuid
 from pinecone import Pinecone
+#from sentence_transformers import SentenceTransformer
+
+# load configs
+PINECONE_REGION = PC_REGION
+INDEX_NAME = INDEX_N
+DIMENSION = 1536
 
 # Load secret key
 def get_secret(secret_name, key_name):
@@ -17,11 +23,6 @@ def get_secret(secret_name, key_name):
     response = client.get_secret_value(SecretId=secret_name)
     secret = json.loads(response['SecretString'])
     return secret.get(key_name)
-
-# load configs
-PINECONE_REGION = PC_REGION
-INDEX_NAME = INDEX_N
-DIMENSION = 1536
 
 # Retrieve API key securely
 api_key = get_secret(openAI_Secret_name, openAI_key_name)
@@ -40,7 +41,7 @@ table = dynamodb.Table('AttackVectors')
 
 # === Pinecone Setup ===
 
-# Initialize pinecone client
+# # Initialize pinecone client
 pc = Pinecone(api_key=pc_api_key)
 index = pc.Index(INDEX_NAME)
 
@@ -48,8 +49,17 @@ def get_embedding(text):
     response = client.embeddings.create(
         model="text-embedding-3-small",
         input=[text]
+        #dimensions=512
     )
     return response.data[0].embedding
+
+# # === Embedding function ===
+# def get_embedding(text: str) -> list:
+#     model = SentenceTransformer('all-MiniLM-L6-v2')
+#     print(f"Generating embedding for text: {text[:50]}...")  # Print first 50 characters
+#     embedding = model.encode(text).tolist()  # Convert the embedding to a list
+#     print(f"Generated Embedding for '{text[:50]}...': {embedding[:5]}...")  # Print the first 5 values for brevity
+#     return embedding
 
 def retrieve_context_from_pinecone(user_query, top_k=5):
     embedding = get_embedding(user_query)
@@ -133,7 +143,7 @@ def chat():
         return jsonify({"error": "No prompt provided"}), 400
 
     corrected_input = correct_spelling_with_ai(user_input)
-    sleep(3)
+    sleep(2)
 
     pinecone_context = retrieve_context_from_pinecone(corrected_input)
 
@@ -193,18 +203,36 @@ def save_to_s3():
         return jsonify({"error": f"Error saving message: {str(e)}"}), 500
 
 @app.route('/update', methods=['GET'])
-def update_attack_vector():
-    attackvector = request.args.get('attackVector')
+def get_threat_data():
+    attack_vector = request.args.get('attackVector')
 
-    if not attackvector:
-        return jsonify({'error': 'Missing attackvector parameter'}), 400
+    if not attack_vector:
+        return jsonify({"error": "Missing attackVector parameter"}), 400
 
-    response = table.get_item(Key={'attackVector': attackvector})
+    try:
+        # Query DynamoDB based on the attack vector
+        response = table.get_item(Key={'attackVector': attack_vector})
 
-    if 'Item' in response:
-        return jsonify(response['Item'])
-    else:
-        return jsonify({'error': 'Attack Vector not found'}), 404
+        if 'Item' not in response:
+            return jsonify({"error": "No data found for this attack vector"}), 404
+
+        item = response['Item']
+
+        # Example of expected return keys (adjust according to your table schema)
+        return jsonify({
+            "attackVector": item.get("attackVector", ""),
+            "ttps": item.get("ttps", "N/A"),
+            "iocs": item.get("iocs", "N/A"),
+            "cves": item.get("cves", "N/A"),
+            "timeline": item.get("timeline", "N/A"),
+            "incidentReports": item.get("incidentReports", "N/A"),
+            "threatFeeds": item.get("threatFeeds", "N/A")
+        })
+
+    except Exception as e:
+        print(f"Error fetching from DynamoDB: {e}")
+        return jsonify({"error": "Server error while querying DynamoDB"}), 500
+
 
 @app.route("/get-prompts-results", methods=["GET"])
 def get_prompts_and_results():
