@@ -7,43 +7,46 @@ import json
 import awsgi2
 from time import sleep
 import datetime
-from config import PROMPT_BUCKET_NAME, PC_REGION, INDEX_N
+from config import PROMPT_BUCKET_NAME, PC_REGION, INDEX_N, openAI_Secret_name, openAI_key_name,PC_Secret_name,PC_key_name
 import uuid
 from pinecone import Pinecone
 
 # Load secret key
 def get_secret(secret_name, key_name):
-    client = boto3.client('secretsmanager', region_name="us-east-1")  
+    client = boto3.client('secretsmanager', region_name="us-east-1")
     response = client.get_secret_value(SecretId=secret_name)
     secret = json.loads(response['SecretString'])
     return secret.get(key_name)
 
+# load configs
+PINECONE_REGION = PC_REGION
+INDEX_NAME = INDEX_N
+DIMENSION = 1536
+
 # Retrieve API key securely
-api_key = get_secret("OPENAI_API_KEY_NEW","OPENAI_API_KEY_NEW")
+api_key = get_secret(openAI_Secret_name, openAI_key_name)
+pc_api_key = get_secret(PC_Secret_name, PC_key_name)
 
 # Initialize OpenAI Client
 client = OpenAI(api_key=api_key)
 
 # Initialize flask app
 app = Flask(__name__)
-CORS(app) 
+CORS(app)
+
+# Initialize a DynamoDB client
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+table = dynamodb.Table('AttackVectors')
 
 # === Pinecone Setup ===
-PINECONE_REGION = PC_REGION
-INDEX_NAME = INDEX_N
-DIMENSION = 1536 
-
-# Retrieve pinecone API key securely
-pc_api_key = get_secret("PINECONE_API_KEY","PINECONE_API_KEY")
 
 # Initialize pinecone client
 pc = Pinecone(api_key=pc_api_key)
-
 index = pc.Index(INDEX_NAME)
 
 def get_embedding(text):
     response = client.embeddings.create(
-        model="text-embedding-3-small",  # or your preferred model
+        model="text-embedding-3-small",
         input=[text]
     )
     return response.data[0].embedding
@@ -51,23 +54,13 @@ def get_embedding(text):
 def retrieve_context_from_pinecone(user_query, top_k=5):
     embedding = get_embedding(user_query)
     result = index.query(vector=embedding, top_k=top_k, include_metadata=True)
-    
-    # Join metadata text fields (assuming you stored your data in "text" metadata)
-    context_chunks = [match['metadata']['description'] for match in result['matches'] if 'description' in match['metadata']]
-    # print([match['metadata'] for match in result['matches']])
-    # print(context_chunks) 
-    return "\n---\n".join(context_chunks)
-    
 
-# Initialize a DynamoDB client
-dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-table = dynamodb.Table('AttackVectors')  # Assuming the table name is 'AttackVectors'
+    context_chunks = [match['metadata']['description'] for match in result['matches'] if 'description' in match['metadata']]
+    return "\n---\n".join(context_chunks)
 
 def refine_prompt(user_input):
-
     user_input_lower = user_input.lower()
 
-    # Intent classification using keyword matching
     if re.search(r"\b(explain|describe|define)\b", user_input_lower):
         return f"Explain in simple terms:\n{user_input}"
     elif re.search(r"\b(compare|contrast|difference)\b", user_input_lower):
@@ -85,48 +78,51 @@ def refine_prompt(user_input):
     else:
         return f"Reply me\nUser: {user_input}\nAssistant:"
 
-# # Cybersecurity keyword categories
+# Cybersecurity keyword categories
 keyword_categories = {
     "attack vectors": ["phishing", "malware", "ransomware", "DoS", "supply chain", "zero-day", "SQL injection"],
     "ttp": ["tactics", "techniques", "procedures", "MITRE ATT&CK", "credential dumping", "spear phishing"],
-    "ioc": ["indicators of compromise",  "file hashes", "malicious IP", "IoCs", "registry changes", "outbound traffic"],
+    "ioc": ["indicators of compromise", "file hashes", "malicious IP", "IoCs", "registry changes", "outbound traffic"],
     "cve": ["common vulnerabilities", "CVE", "patch", "exploit", "vulnerability management"],
-    "attack timeline": ["reconnaissance","attack", "initial compromise", "lateral movement", "data exfiltration", "persistence"],
+    "attack timeline": ["reconnaissance", "attack", "initial compromise", "lateral movement", "data exfiltration", "persistence"],
     "incident reports": ["case study", "breach analysis", "threat actor", "malware campaign", "incident response"],
     "threat intelligence": ["threat feeds", "AlienVault", "Recorded Future", "real-time threats", "cyber intelligence"],
     "vulnerabilities": ["advanced persistent threats", "APTs", "insider threats", "zero-day vulnerabilities"]
-} 
+}
 
 # Function to set dynamic persona based on query
 def dynamic_persona(user_input):
-
     persona_base = "You are a cybersecurity expert, skilled in {category}, providing insights on {specifics}."
 
     for category, keywords in keyword_categories.items():
         for keyword in keywords:
-            if re.search(rf"\b{keyword}\b", user_input, re.IGNORECASE):  # Match whole words
-                specifics = ", ".join(keywords[:3])  # Pick first 3 keywords for details
+            if re.search(rf"\b{keyword}\b", user_input, re.IGNORECASE):
+                specifics = ", ".join(keywords[:3])
                 return persona_base.format(category=category, specifics=specifics)
 
     return "You are a Cyber Threat Analyst, providing expert insights on cybersecurity threats, vulnerabilities, and defenses."
 
-
-#Uses GPT-4o-mini to correct spelling mistakes while preserving technical terms.
+# Uses GPT-4o-mini to correct spelling mistakes while preserving technical terms
 def correct_spelling_with_ai(user_input):
-    
     messages = [
-        {"role": "system", "content": "You are a spelling correction assistant. Identify and correct misspelled words while preserving technical and cybersecurity-related terms."},
-        {"role": "user", "content": f"Correct any spelling mistakes and only send me the corrected text: {user_input}"}
+        {
+            "role": "system",
+            "content": "You are a spelling correction assistant. Identify and correct misspelled words while preserving technical and cybersecurity-related terms."
+        },
+        {
+            "role": "user",
+            "content": f"Correct any spelling mistakes and only send me the corrected text: {user_input}"
+        }
     ]
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=messages,
-        temperature=0.2 
+        temperature=0.2
     )
-    
+
     return response.choices[0].message.content.strip()
-  
+
 # Route to get user prompts
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -135,24 +131,23 @@ def chat():
 
     if not user_input:
         return jsonify({"error": "No prompt provided"}), 400
-    
+
     corrected_input = correct_spelling_with_ai(user_input)
     sleep(3)
-    
-    # messages = [
-    #     {"role": "system", "content":  dynamic_persona(corrected_input)},
-    #     {"role": "user", "content": refine_prompt(corrected_input)}
-    # ]
 
     pinecone_context = retrieve_context_from_pinecone(corrected_input)
 
     messages = [
         {"role": "system", "content": dynamic_persona(corrected_input)},
-        {"role": "system", "content": f"Here is relevant context: Use this to answer the question. Provide the content highlighting the attack vectors, TTP's, IoCs, CVEs, attack timelines, any incident reports, and the feed data. Try ti include time values as well.\n{pinecone_context}"},
+        {
+            "role": "system",
+            "content": f"""Here is relevant context: Use this to answer the question.
+                            Provide the content highlighting the attack vectors, TTP's, IoCs, CVEs, attack timelines, any incident reports, and the feed data.
+                            Try to include time values as well.\n{pinecone_context}"""
+        },
         {"role": "user", "content": refine_prompt(corrected_input)}
     ]
-    
-    # Print the generated prompt to debug
+
     print("\n=== Final Prompt Sent to API ===")
     print(messages)
     print("================================\n")
@@ -171,32 +166,26 @@ def chat():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-# Create an S3 client using the IAM role associated with your AWS resource
+# Create an S3 client
 s3_client = boto3.client('s3')
 
-
-# Route to save user
 @app.route("/save-to-s3", methods=["POST"])
 def save_to_s3():
-    # Get the prompt from the request
     prompt = request.json.get("prompt")
 
     if not prompt:
         return jsonify({"error": "No prompt provided"}), 400
 
     try:
-        # Generate a unique filename using timestamp and UUID
         timestamp = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
         file_name = f"prompt_{timestamp}_{uuid.uuid4().hex[:8]}.txt"
 
-        # Upload the prompt as a text file to S3
         s3_client.put_object(
             Bucket=PROMPT_BUCKET_NAME,
             Key=file_name,
             Body=prompt.encode("utf-8"),
             ContentType="text/plain"
-         )
+        )
 
         return jsonify({"message": "Prompt successfully saved!", "file_name": file_name}), 200
 
@@ -205,18 +194,13 @@ def save_to_s3():
 
 @app.route('/update', methods=['GET'])
 def update_attack_vector():
-    # Extract attackvector from the query parameter
     attackvector = request.args.get('attackVector')
 
     if not attackvector:
         return jsonify({'error': 'Missing attackvector parameter'}), 400
 
-    # Query the DynamoDB table for the specific attackvector
-    response = table.get_item(
-        Key={'attackVector': attackvector} 
-    )
+    response = table.get_item(Key={'attackVector': attackvector})
 
-    # If the attackvector exists, return its data
     if 'Item' in response:
         return jsonify(response['Item'])
     else:
@@ -234,23 +218,26 @@ def get_prompts_and_results():
             key = obj["Key"]
             last_updated_time = obj["LastModified"].strftime("%Y-%m-%d %H:%M:%S")
 
-            if key.endswith(".txt") and not key.endswith("_result.txt"):  
+            if key.endswith(".txt") and not key.endswith("_result.txt"):
                 result_key = key.replace(".txt", "_result.txt")
                 prompt_obj = s3_client.get_object(Bucket=PROMPT_BUCKET_NAME, Key=key)
                 prompt_text = prompt_obj["Body"].read().decode("utf-8").strip()
-               
-                sleep(3)
 
+                sleep(3)
                 result_text = "Processing..."
 
                 try:
                     result_obj = s3_client.get_object(Bucket=PROMPT_BUCKET_NAME, Key=result_key)
                     result_text = result_obj["Body"].read().decode("utf-8").strip()
-                    last_updated_time = result_obj["LastModified"].strftime("%Y-%m-%d %H:%M:%S")  # Get last modified of results file
+                    last_updated_time = result_obj["LastModified"].strftime("%Y-%m-%d %H:%M:%S")
                 except s3_client.exceptions.NoSuchKey:
                     pass
 
-                data.append({"prompt": prompt_text, "result": result_text,"last_updated": last_updated_time })
+                data.append({
+                    "prompt": prompt_text,
+                    "result": result_text,
+                    "last_updated": last_updated_time
+                })
 
         return data
     except Exception as e:

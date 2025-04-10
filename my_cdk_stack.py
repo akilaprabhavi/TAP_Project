@@ -13,7 +13,6 @@ from aws_cdk import (
 )
 from constructs import Construct
 from aws_cdk.aws_lambda import FunctionUrlAuthType
-from aws_cdk.aws_lambda import Code, DockerImageCode
 from aws_cdk import aws_ecr as ecr
 
 class MyCdkStack(cdk.Stack):
@@ -38,7 +37,6 @@ class MyCdkStack(cdk.Stack):
             sources=[s3_deployment.Source.asset("Dashboard/build")],
             destination_bucket=website_bucket      
         )
-
 
         #------------------ BE deployment-----------------------
 
@@ -101,7 +99,7 @@ class MyCdkStack(cdk.Stack):
         CfnOutput(self, "LambdaPublicUrl", value=function_url.url, export_name="LambdaPublicUrl")
         CfnOutput(self, "S3WebsiteUrl", value=website_bucket.bucket_website_url, export_name="S3WebsiteUrl")
 
-
+        
         # -----------------Other resources----------------------
 
         # s3 bucket to store prompts
@@ -123,7 +121,7 @@ class MyCdkStack(cdk.Stack):
             handler="scheduledExecute.lambda_handler",
             code=_lambda.Code.from_asset("EBlambda/"),
             role=self.lambda_role,
-            timeout=cdk.Duration.seconds(30)
+            timeout=cdk.Duration.seconds(60)
         )
         
         # EventBridge rule to trigger lambda
@@ -131,26 +129,33 @@ class MyCdkStack(cdk.Stack):
             self, "LambdaScheduleRule",
             rule_name="ThreatAnalysisTriggerRule",  
             schedule=events.Schedule.expression("cron(0 * * * ? *)")
+        )       
+
+        # Add Lambda as the target of the EventBridge rule
+        self.event_rule.add_target(targets.LambdaFunction(self.lambda_function))  
+
+        # -----------------Knowledge base Context lambda----------------------
+
+        # Lambda_function to store knowledge base
+        self.context_lambda_function = _lambda.Function(
+            self,
+            "ContextLambda",
+            function_name="ContextLambda",
+            runtime=_lambda.Runtime.PYTHON_3_12,
+            handler="AV_data.lambda_handler",
+            code=_lambda.Code.from_asset("Contextlambda/"),
+            role=self.lambda_role,
+            timeout=cdk.Duration.seconds(60)
+        )
+        
+        # EventBridge rule to trigger Contextlambda 
+        self.event_rule2 = events.Rule(
+            self, "ContextLambdaScheduleRule",
+            rule_name="ContextTriggerRule",  
+            schedule=events.Schedule.expression("cron(0 * * * ? *)")
         )
         
         # Add Lambda as the target of the EventBridge rule
-        self.event_rule.add_target(targets.LambdaFunction(self.lambda_function))
-        # ---------------- DynamoDB Table for Threat Pulses ----------------
-
-        self.threat_pulses_table = dynamodb.Table(
-            self, "ThreatPulsesTable",
-            table_name="ThreatPulses",
-            partition_key=dynamodb.Attribute(
-                name="id",
-                type=dynamodb.AttributeType.STRING
-            ),
-            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            removal_policy=RemovalPolicy.DESTROY  # or RETAIN in production
-        )
-        
-        # Grant the Lambda function full access to the table
-        self.threat_pulses_table.grant_read_write_data(self.lambda_role)
-
 
 app = cdk.App()
 MyCdkStack(app, "MyCdkStack")
