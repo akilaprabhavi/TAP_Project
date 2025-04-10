@@ -1,0 +1,113 @@
+.sidenav{
+    /*background-color: #ffffff !important;*/
+    background-color: #222;
+    width: 350px !important;
+    height: calc(100vh - 90px) !important;
+    float: left;
+    border-right: 1px solid #e6e6e6;
+}
+
+.navbar-item {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+}
+
+.sidebar-header{
+    padding: 20px;
+    border-bottom: 1px solid #e6e6e6;
+    text-align: center;
+}
+
+.fst-normal{
+    font-size: 12px !important;
+    font-weight: 300 !important;
+    color: #ffffff;
+}
+
+.custom-header{
+    font-family: 'Roboto Slab', sans-serif !important;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 26px;
+    text-decoration: none;
+}
+
+.logo-container {
+    text-align: center;
+    margin-bottom: 10px;
+    display: inline-block;
+    height: auto;
+  }
+
+.logo-container img {
+    max-width: 100%; /* Ensure it doesn't exceed the container */
+    height: auto; /* Maintain aspect ratio */
+    width: 100px; /* Adjust to preferred size */
+}
+
+.navbar-item li {
+    padding: 10px 40px;
+    border-bottom: 1px solid #e6e6e6;
+    border-left: 10px solid #ffffff;
+    transition: border-left 0.3s, background-color 0.3s;
+    font-weight: 300 !important;
+}
+
+.navbar-item li:hover {
+    border-left: 10px solid #2251ff;
+    background-color: #2251ff09;
+}
+
+.navbar-item a {
+    text-decoration: none;
+    color: #ffffff;
+    font-size: 15px;
+    display: block;
+    transition: color 0.3s; 
+}
+
+.navbar-item a:hover {
+    color: #2251ff !important;
+}
+
+.sidebar-footer {
+    margin-top: auto;
+}
+
+.custom-button{
+    padding: 10px 40px;
+    width: 100% !important;
+    border-bottom: 1px solid #e6e6e6;
+    border-left: 10px solid #ffffff;
+    transition: border-left 0.3s, background-color 0.3s;
+    text-align: left;
+    background-color: #ffffff !important;
+    border-top: 0 !important;
+    border-right: 0 !important;
+    font-weight: 300 !important;
+}
+
+.custom-button:hover{
+    background-color: #2251ff09;
+    color: #2251ff;
+}
+
+.browse{
+    margin-left: 7px !important;
+    font-size: 14px !important;
+}
+
+@media only screen and (min-width: 320px) and (max-width: 480px) {
+    .sidenav {
+        width: 0 !important;
+        display: none !important;
+
+    }
+
+    .sidenav .open{
+        width: 100% !important;
+        display: block !important;
+    }
+}
