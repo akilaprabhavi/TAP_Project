@@ -134,7 +134,23 @@ class MyCdkStack(cdk.Stack):
         )
         
         # Add Lambda as the target of the EventBridge rule
-        self.event_rule.add_target(targets.LambdaFunction(self.lambda_function))     
+        self.event_rule.add_target(targets.LambdaFunction(self.lambda_function))
+        # ---------------- DynamoDB Table for Threat Pulses ----------------
+
+        self.threat_pulses_table = dynamodb.Table(
+            self, "ThreatPulsesTable",
+            table_name="ThreatPulses",
+            partition_key=dynamodb.Attribute(
+                name="id",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY  # or RETAIN in production
+        )
+        
+        # Grant the Lambda function full access to the table
+        self.threat_pulses_table.grant_read_write_data(self.lambda_role)
+
 
 app = cdk.App()
 MyCdkStack(app, "MyCdkStack")
