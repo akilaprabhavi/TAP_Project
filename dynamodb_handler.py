@@ -8,17 +8,15 @@ class DynamoDBHandler:
     A class to handle DynamoDB operations for threat pulses.
     """
 
-    def __init__(self):
-        load_dotenv()  # Load AWS credentials from .env
+    def __init__(self, table_name=None):
+        load_dotenv()
 
-        self.table_name = os.getenv("DYNAMODB_TABLE_NAME")
-        self.dynamodb = boto3.resource(
-            'dynamodb',
-            region_name=os.getenv("AWS_REGION"),
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
-        )
+        # Get table name from env or default to CDK-created table
+        self.table_name = table_name or os.getenv("DYNAMODB_TABLE_NAME", "ThreatPulses")
+        self.region = os.getenv("AWS_REGION", "us-east-1")
 
+        # Create DynamoDB resource using default AWS credential chain (IAM role, CLI config, etc.)
+        self.dynamodb = boto3.resource('dynamodb', region_name=self.region)
         self.table = self.dynamodb.Table(self.table_name)
 
     def insert_or_update_pulse(self, pulse: dict):
@@ -26,8 +24,10 @@ class DynamoDBHandler:
         Insert a new pulse or update existing one based on its ID and modified time.
         """
         pulse_id = pulse.get("id")
+        if not pulse_id:
+            return
 
-        # Check if pulse exists and compare modified time
+        # Check for existing item to avoid unnecessary overwrite
         existing = self.table.get_item(Key={"id": pulse_id})
         existing_item = existing.get("Item")
 
@@ -71,7 +71,6 @@ class DynamoDBHandler:
     def fetch_recent_pulses(self, limit=5):
         """
         Fetch the most recent pulses, sorted by created timestamp.
-        Note: DynamoDB doesn't support direct sorting unless using indexes.
         """
         all_pulses = self.fetch_all_pulses()
         sorted_pulses = sorted(all_pulses, key=lambda x: x.get("created", ""), reverse=True)
@@ -85,3 +84,4 @@ class DynamoDBHandler:
             FilterExpression=Attr("name").contains(keyword) | Attr("description").contains(keyword)
         )
         return response.get("Items", [])
+
