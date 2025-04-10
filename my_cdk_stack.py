@@ -156,7 +156,6 @@ class MyCdkStack(cdk.Stack):
         )
         
         # Add Lambda as the target of the EventBridge rule
-        self.event_rule2.add_target(targets.LambdaFunction(self.context_lambda_function))     
 
 app = cdk.App()
 MyCdkStack(app, "MyCdkStack")
