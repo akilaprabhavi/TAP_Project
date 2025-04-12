@@ -7,7 +7,7 @@ import json
 import awsgi2
 from time import sleep
 import datetime
-from config import PROMPT_BUCKET_NAME, PC_REGION, INDEX_N, openAI_Secret_name, openAI_key_name,PC_Secret_name,PC_key_name
+from config import PROMPT_BUCKET_NAME, PC_REGION, INDEX_N, openAI_Secret_name, openAI_key_name,PC_Secret_name,PC_key_name,DYNAMO_DB_TABLE
 import uuid
 from pinecone import Pinecone
 #from sentence_transformers import SentenceTransformer
@@ -37,7 +37,7 @@ CORS(app)
 
 # Initialize a DynamoDB client
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-table = dynamodb.Table('AttackVectors')
+table = dynamodb.Table(DYNAMO_DB_TABLE)
 
 # === Pinecone Setup ===
 
@@ -49,7 +49,6 @@ def get_embedding(text):
     response = client.embeddings.create(
         model="text-embedding-3-small",
         input=[text]
-        #dimensions=512
     )
     return response.data[0].embedding
 
@@ -65,6 +64,7 @@ def retrieve_context_from_pinecone(user_query, top_k=5):
     embedding = get_embedding(user_query)
     result = index.query(vector=embedding, top_k=top_k, include_metadata=True)
 
+    #loops through each matched result from pinecone and get description and create a list
     context_chunks = [match['metadata']['description'] for match in result['matches'] if 'description' in match['metadata']]
     return "\n---\n".join(context_chunks)
 
@@ -90,14 +90,16 @@ def refine_prompt(user_input):
 
 # Cybersecurity keyword categories
 keyword_categories = {
-    "attack vectors": ["phishing", "malware", "ransomware", "DoS", "supply chain", "zero-day", "SQL injection"],
-    "ttp": ["tactics", "techniques", "procedures", "MITRE ATT&CK", "credential dumping", "spear phishing"],
-    "ioc": ["indicators of compromise", "file hashes", "malicious IP", "IoCs", "registry changes", "outbound traffic"],
-    "cve": ["common vulnerabilities", "CVE", "patch", "exploit", "vulnerability management"],
-    "attack timeline": ["reconnaissance", "attack", "initial compromise", "lateral movement", "data exfiltration", "persistence"],
-    "incident reports": ["case study", "breach analysis", "threat actor", "malware campaign", "incident response"],
-    "threat intelligence": ["threat feeds", "AlienVault", "Recorded Future", "real-time threats", "cyber intelligence"],
-    "vulnerabilities": ["advanced persistent threats", "APTs", "insider threats", "zero-day vulnerabilities"]
+    "attack vectors": ["ttps", "IOCs", "attack timeline", "phishing", "malware", "ransomware", "social engineering", "drive-by download","SQL injection", "XSS", "watering hole", "supply chain", "zero-day", "DoS", "DDoS"],
+    "tactics, techniques & procedures (TTPs)": ["tactics", "techniques", "procedures", "MITRE ATT&CK", "command and control","lateral movement", "credential dumping", "privilege escalation", "initial access", "spear phishing"],
+    "indicators of compromise (IOCs)": ["IoCs", "file hashes", "SHA256", "malicious IP", "domain name","registry changes", "beaconing", "anomalous traffic", "YARA rules", "outbound traffic"],
+    "common vulnerabilities and exposures (CVEs)": ["CVE", "vulnerability", "exploit", "patch", "vulnerability management","remote code execution", "buffer overflow", "privilege escalation bug", "NVD", "CISA KEV"],
+    "attack timeline / kill chain": ["reconnaissance", "weaponization", "delivery", "exploitation", "installation","C2", "actions on objectives", "initial compromise", "data exfiltration", "persistence"],
+    "incident reports & case studies": ["breach analysis", "incident response", "forensics", "threat actor", "case study","malware campaign", "timeline reconstruction", "detection gaps", "APT report", "dwell time"],
+    "threat intelligence platforms & tools": ["threat feeds", "AlienVault", "Recorded Future", "MISP", "Anomali","STIX", "TAXII", "real-time threat intel", "cyber threat reports", "threat scoring"],
+    "advanced threats & APTs": ["advanced persistent threat", "APT", "insider threats", "zero-day", "fileless malware","living off the land", "state-sponsored", "cyber espionage", "targeted attack", "nation-state actors"],
+    "vulnerability disclosure & management": ["bug bounty", "security advisory", "disclosure", "exploit database", "patch management","vendor advisory", "CVSS", "vulnerability lifecycle", "security bulletin", "remediation"],
+    "cyber defense & detection": ["SIEM", "EDR", "XDR", "IDS", "log analysis","behavioral analytics", "threat hunting", "alert triage", "anomaly detection", "security telemetry"]
 }
 
 # Function to set dynamic persona based on query
@@ -202,38 +204,48 @@ def save_to_s3():
     except Exception as e:
         return jsonify({"error": f"Error saving message: {str(e)}"}), 500
 
-@app.route('/update', methods=['GET'])
-def get_threat_data():
-    attack_vector = request.args.get('attackVector')
+# @app.route('/update', methods=['GET'])
+# def get_threat_data():
+#     attack_vector = request.args.get('attackVector')
 
-    if not attack_vector:
-        return jsonify({"error": "Missing attackVector parameter"}), 400
+#     if not attack_vector:
+#         return jsonify({"error": "Missing attackVector parameter"}), 400
 
+#     try:
+#         # Query DynamoDB based on the attack vector
+#         response = table.get_item(Key={'attackVector': attack_vector})
+
+#         if 'Item' not in response:
+#             return jsonify({"error": "No data found for this attack vector"}), 404
+
+#         item = response['Item']
+
+#         return jsonify({
+#             "attackVector": item.get("attackVector", ""),
+#             "ttps": item.get("ttps", "N/A"),
+#             "iocs": item.get("iocs", "N/A"),
+#             "cve": item.get("cve", "N/A"),
+#             "attackTimeline": item.get("attackTimeline", "N/A"),
+#             "incidentReport": item.get("incidentReport", "N/A"),
+#             "threatFeed": item.get("threatFeed", "N/A")
+#         })
+
+#     except Exception as e:
+#         print(f"Error fetching from DynamoDB: {e}")
+#         return jsonify({"error": "Server error while querying DynamoDB"}), 500
+
+@app.route("/all-threats", methods=["GET"])
+def get_all_threats():
     try:
-        # Query DynamoDB based on the attack vector
-        response = table.get_item(Key={'attackVector': attack_vector})
+        response = table.scan()  # Scan fetches all items in the table
+        items = response.get("Items", [])
 
-        if 'Item' not in response:
-            return jsonify({"error": "No data found for this attack vector"}), 404
-
-        item = response['Item']
-
-        # Example of expected return keys (adjust according to your table schema)
-        return jsonify({
-            "attackVector": item.get("attackVector", ""),
-            "ttps": item.get("ttps", "N/A"),
-            "iocs": item.get("iocs", "N/A"),
-            "cves": item.get("cves", "N/A"),
-            "timeline": item.get("timeline", "N/A"),
-            "incidentReports": item.get("incidentReports", "N/A"),
-            "threatFeeds": item.get("threatFeeds", "N/A")
-        })
+        return jsonify(items)
 
     except Exception as e:
-        print(f"Error fetching from DynamoDB: {e}")
-        return jsonify({"error": "Server error while querying DynamoDB"}), 500
-
-
+        print(f"Error fetching all threats: {e}")
+        return jsonify({"error": "Server error while scanning DynamoDB"}), 500
+    
 @app.route("/get-prompts-results", methods=["GET"])
 def get_prompts_and_results():
     try:
