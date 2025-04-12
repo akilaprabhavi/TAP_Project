@@ -14,29 +14,12 @@ from aws_cdk import (
 from constructs import Construct
 from aws_cdk.aws_lambda import FunctionUrlAuthType
 from aws_cdk import aws_ecr as ecr
+from pathlib import Path
+import json
 
 class MyCdkStack(cdk.Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
-
-        #-------------------FE deployment -------------------------
-           
-        # S3 Website for CRA Build       
-        website_bucket = s3.Bucket(self, "WebsiteBucket",
-            bucket_name="websitebucketakila",                  
-            website_index_document="index.html",
-            website_error_document="index.html",
-            block_public_access=s3.BlockPublicAccess(block_public_policy=False, restrict_public_buckets=False),
-            public_read_access=True,
-            removal_policy=RemovalPolicy.DESTROY, 
-            auto_delete_objects=True
-        )
-
-        # Deploy static website content from the CRA build output
-        s3_deployment.BucketDeployment(self, "DeployWebsite",
-            sources=[s3_deployment.Source.asset("Dashboard/build")],
-            destination_bucket=website_bucket      
-        )
 
         #------------------ BE deployment-----------------------
 
@@ -71,8 +54,11 @@ class MyCdkStack(cdk.Stack):
 
         # Allow Lambda to get items from DynamoDB
         self.lambda_role.add_to_policy(iam.PolicyStatement(
-            actions=["dynamodb:GetItem"],
-            resources=["arn:aws:dynamodb:us-east-1:713881796790:table/AttackVectors"]
+            actions=[
+                "dynamodb:GetItem",
+                "dynamodb:Scan"
+            ],
+            resources=["arn:aws:dynamodb:us-east-1:713881796790:table/AttackVectorsData"]
         ))
 
 
@@ -84,8 +70,6 @@ class MyCdkStack(cdk.Stack):
             self,
             "FlaskLambda",
             function_name="BELambdaFunction",
-            #handler="application.handler",
-            #runtime=_lambda.Runtime.PYTHON_3_12,
             code=_lambda.DockerImageCode.from_image_asset("lambda/"),
             role=self.lambda_role,
             timeout=Duration.seconds(30),
@@ -95,11 +79,34 @@ class MyCdkStack(cdk.Stack):
         function_url = flask_lambda.add_function_url(auth_type=FunctionUrlAuthType.NONE)
        
 
+        # Save it as config.json locally
+        config_data = {"lambdaUrl": function_url.url}
+        config_path = "Dashboard/public/config.json"
+        Path(config_path).write_text(json.dumps(config_data))
+            
+        #-------------------FE deployment -------------------------
+           
+        # S3 Website for CRA Build       
+        website_bucket = s3.Bucket(self, "WebsiteBucket",
+            bucket_name="websitebucketakila",                  
+            website_index_document="index.html",
+            website_error_document="index.html",
+            block_public_access=s3.BlockPublicAccess(block_public_policy=False, restrict_public_buckets=False),
+            public_read_access=True,
+            removal_policy=RemovalPolicy.DESTROY, 
+            auto_delete_objects=True
+        )
+
+        # Deploy static website content from the CRA build output
+        s3_deployment.BucketDeployment(self, "DeployWebsite",
+            sources=[s3_deployment.Source.asset("Dashboard/build")],
+            destination_bucket=website_bucket      
+        )
+
         # CloudFormation Outputs
         CfnOutput(self, "LambdaPublicUrl", value=function_url.url, export_name="LambdaPublicUrl")
         CfnOutput(self, "S3WebsiteUrl", value=website_bucket.bucket_website_url, export_name="S3WebsiteUrl")
 
-        
         # -----------------Other resources----------------------
 
         # s3 bucket to store prompts
@@ -128,7 +135,7 @@ class MyCdkStack(cdk.Stack):
         self.event_rule = events.Rule(
             self, "LambdaScheduleRule",
             rule_name="ThreatAnalysisTriggerRule",  
-            schedule=events.Schedule.expression("cron(0 * * * ? *)")
+            schedule=events.Schedule.expression("cron(0 9 * * ? *)")
         )       
 
         # Add Lambda as the target of the EventBridge rule
@@ -153,9 +160,10 @@ class MyCdkStack(cdk.Stack):
             self, "ContextLambdaScheduleRule",
             rule_name="ContextTriggerRule",  
             schedule=events.Schedule.expression("cron(0 * * * ? *)")
-        )
-        
-        # Add Lambda as the target of the EventBridge rule
+        ) 
+
+        # Add contextLambda as the target of the EventBridge rule
+        self.event_rule2.add_target(targets.LambdaFunction(self.context_lambda_function))       
 
 app = cdk.App()
 MyCdkStack(app, "MyCdkStack")
