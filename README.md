@@ -57,4 +57,14 @@ The application is deployed on **cloud infrastructure** using **AWS services**, 
 - **Amazon API Gateway**: To expose the analysis functions as **RESTful endpoints** for secure and authenticated access.
 - **Amazon CloudWatch**: Used to schedule and monitor **Lambda executions**, ensuring timely updates of the **GPT-based analysis module**.
 
+Resources Used
+- [Developer Guide] (https://docs.aws.amazon.com/cdk/latest/guide/home.html )
+- [API Reference] (https://docs.aws.amazon.com/cdk/api/latest/docs/aws-construct-library.html )
+- [CDK Repository] (https://github.com/aws/aws-cdk )
+- [CDK Construct Hub] (https://constructs.dev/ )
+- 
+Contact
+For more information or assistance, feel free to reach out to 104768276@student.swin.edu.au
 
+License
+This library is licensed under the SwinburneUniversity License.
