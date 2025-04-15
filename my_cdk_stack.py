@@ -29,10 +29,10 @@ class MyCdkStack(cdk.Stack):
             auto_delete_objects=True
         )
 
-        s3_deployment.BucketDeployment(self, "DeployWebsite",
-            sources=[s3_deployment.Source.asset("Dashboard/build")],
-            destination_bucket=website_bucket      
-        )
+        #s3_deployment.BucketDeployment(self, "DeployWebsite",
+        #    sources=[s3_deployment.Source.asset("Dashboard/build")],
+        #    destination_bucket=website_bucket      
+        #)
 
         # ---------------- DynamoDB Table ----------------
         self.threat_pulses_table = dynamodb.Table(
@@ -80,7 +80,6 @@ class MyCdkStack(cdk.Stack):
             timeout=cdk.Duration.seconds(30),
             environment={
                 "DYNAMODB_TABLE_NAME": self.threat_pulses_table.table_name,
-                "AWS_REGION": "us-east-1"
             }
         )
 
