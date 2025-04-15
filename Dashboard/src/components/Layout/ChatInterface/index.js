@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import './ChatInterface.css';
@@ -16,7 +16,6 @@ const ChatInterface = () => {
     setInput(""); // Clear input field
 
     try {
-      //AWS-hosted Flask endpoint here
       const response = await fetch("https://ulaq2p5pomaufimwt3pfxr3tpa0szfux.lambda-url.us-east-1.on.aws/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -30,10 +29,16 @@ const ChatInterface = () => {
       console.error("Error fetching response:", error);
     }
   };
+  // auto scrolling to latest message
+  const chatBoxRef = useRef();
+  useEffect(() => 
+    {
+      chatBoxRef.current?.scrollTo(0, chatBoxRef.current.scrollHeight);
+    }, [messages]);
 
   return (
     <div className="chat-container">
-      <div className="chat-box">
+      <div className="chat-box" ref={chatBoxRef}>
         {messages.map((msg, index) => (
           <div key={index} className={`message ${msg.sender}`}>
             {msg.sender === "assistant" ? (
