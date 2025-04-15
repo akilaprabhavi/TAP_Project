@@ -1,0 +1,22 @@
+node_modules/
+cdk.out/
+venv/
+__pycache__/
+*.pyc
+.env
+*-info
+bin
+boto3
+botocore
+certifi
+charset_normalizer
+dateutil
+idna
+jmespath
+requests
+s3transfer
+urllib3
+six.py
+# CDK asset staging directory
+.cdk.staging
+cdk.out

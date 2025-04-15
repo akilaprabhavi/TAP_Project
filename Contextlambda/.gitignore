@@ -1,0 +1,18 @@
+node_modules/
+cdk.out/
+venv/
+__pycache__/
+bin
+certifi
+certifi-2025.1.31.dist-info
+requests
+urllib3
+idna
+idna-3.10.dist-info
+charset_normalizer
+charset_normalizer-3.4.1.dist-info
+requests-2.32.3.dist-info
+urllib3-2.3.0.dist-info
+# CDK asset staging directory
+.cdk.staging
+cdk.out

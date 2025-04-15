@@ -10,7 +10,7 @@ def get_aws_secret(secret_name=None, region=None):
     Load a secret from AWS Secrets Manager and return it as a dictionary.
     """
     secret_name = secret_name or os.getenv("AWS_SECRET_NAME", "my_project/tap/secrets")
-    region = region or os.getenv("AWS_REGION", "us-east-2")
+    region = region or os.getenv("AWS_REGION", "us-east-1")
 
     client = boto3.client('secretsmanager', region_name=region)
 
