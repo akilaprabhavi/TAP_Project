@@ -15,7 +15,6 @@ from pinecone import Pinecone
 # load configs
 PINECONE_REGION = PC_REGION
 INDEX_NAME = INDEX_N
-DIMENSION = 1536
 
 # Load secret key
 def get_secret(secret_name, key_name):
@@ -41,7 +40,7 @@ table = dynamodb.Table(DYNAMO_DB_TABLE)
 
 # === Pinecone Setup ===
 
-# # Initialize pinecone client
+# Initialize pinecone client
 pc = Pinecone(api_key=pc_api_key)
 index = pc.Index(INDEX_NAME)
 
@@ -51,14 +50,6 @@ def get_embedding(text):
         input=[text]
     )
     return response.data[0].embedding
-
-# # === Embedding function ===
-# def get_embedding(text: str) -> list:
-#     model = SentenceTransformer('all-MiniLM-L6-v2')
-#     print(f"Generating embedding for text: {text[:50]}...")  # Print first 50 characters
-#     embedding = model.encode(text).tolist()  # Convert the embedding to a list
-#     print(f"Generated Embedding for '{text[:50]}...': {embedding[:5]}...")  # Print the first 5 values for brevity
-#     return embedding
 
 def retrieve_context_from_pinecone(user_query, top_k=5):
     embedding = get_embedding(user_query)
@@ -145,7 +136,7 @@ def chat():
         return jsonify({"error": "No prompt provided"}), 400
 
     corrected_input = correct_spelling_with_ai(user_input)
-    sleep(2)
+    sleep(1)
 
     pinecone_context = retrieve_context_from_pinecone(corrected_input)
 
@@ -204,40 +195,10 @@ def save_to_s3():
     except Exception as e:
         return jsonify({"error": f"Error saving message: {str(e)}"}), 500
 
-# @app.route('/update', methods=['GET'])
-# def get_threat_data():
-#     attack_vector = request.args.get('attackVector')
-
-#     if not attack_vector:
-#         return jsonify({"error": "Missing attackVector parameter"}), 400
-
-#     try:
-#         # Query DynamoDB based on the attack vector
-#         response = table.get_item(Key={'attackVector': attack_vector})
-
-#         if 'Item' not in response:
-#             return jsonify({"error": "No data found for this attack vector"}), 404
-
-#         item = response['Item']
-
-#         return jsonify({
-#             "attackVector": item.get("attackVector", ""),
-#             "ttps": item.get("ttps", "N/A"),
-#             "iocs": item.get("iocs", "N/A"),
-#             "cve": item.get("cve", "N/A"),
-#             "attackTimeline": item.get("attackTimeline", "N/A"),
-#             "incidentReport": item.get("incidentReport", "N/A"),
-#             "threatFeed": item.get("threatFeed", "N/A")
-#         })
-
-#     except Exception as e:
-#         print(f"Error fetching from DynamoDB: {e}")
-#         return jsonify({"error": "Server error while querying DynamoDB"}), 500
-
 @app.route("/all-threats", methods=["GET"])
 def get_all_threats():
     try:
-        response = table.scan()  # Scan fetches all items in the table
+        response = table.scan()
         items = response.get("Items", [])
 
         return jsonify(items)

@@ -16,6 +16,7 @@ from aws_cdk.aws_lambda import FunctionUrlAuthType
 from aws_cdk import aws_ecr as ecr
 from pathlib import Path
 import json
+from config.config import *
 
 class MyCdkStack(cdk.Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
@@ -69,7 +70,7 @@ class MyCdkStack(cdk.Stack):
         flask_lambda = _lambda.DockerImageFunction(
             self,
             "FlaskLambda",
-            function_name="BELambdaFunction",
+            function_name=BE_lAMBDA_FUNCTION_NAME,
             code=_lambda.DockerImageCode.from_image_asset("lambda/"),
             role=self.lambda_role,
             timeout=Duration.seconds(30),
@@ -77,18 +78,12 @@ class MyCdkStack(cdk.Stack):
 
         # Create a Lambda Function URL(publicly accessible)
         function_url = flask_lambda.add_function_url(auth_type=FunctionUrlAuthType.NONE)
-       
-
-        # Save it as config.json locally
-        config_data = {"lambdaUrl": function_url.url}
-        config_path = "Dashboard/public/config.json"
-        Path(config_path).write_text(json.dumps(config_data))
-            
+               
         #-------------------FE deployment -------------------------
            
         # S3 Website for CRA Build       
         website_bucket = s3.Bucket(self, "WebsiteBucket",
-            bucket_name="websitebucketakila",                  
+            bucket_name=WEBSITE_BUCKET_NAME,                  
             website_index_document="index.html",
             website_error_document="index.html",
             block_public_access=s3.BlockPublicAccess(block_public_policy=False, restrict_public_buckets=False),
@@ -103,14 +98,14 @@ class MyCdkStack(cdk.Stack):
             destination_bucket=website_bucket      
         )
 
-        # CloudFormation Outputs
+        # -----------------------CloudFormation Outputs------------------
         CfnOutput(self, "LambdaPublicUrl", value=function_url.url, export_name="LambdaPublicUrl")
         CfnOutput(self, "S3WebsiteUrl", value=website_bucket.bucket_website_url, export_name="S3WebsiteUrl")
 
         # -----------------Other resources----------------------
 
         # s3 bucket to store prompts
-        prompt_bucket_name = "promptbucketakila" 
+        prompt_bucket_name = PROMPT_BUCKET_NAME 
 
         self.prompt_bucket = s3.Bucket(
                 self, "promptbucket",
@@ -123,7 +118,7 @@ class MyCdkStack(cdk.Stack):
         self.lambda_function = _lambda.Function(
             self,
             "ChatGPTThreatAnalysis",
-            function_name="ThreatAnalysisLambda",
+            function_name=LAMBDA_FUNCTION_NAME,
             runtime=_lambda.Runtime.PYTHON_3_12,
             handler="scheduledExecute.lambda_handler",
             code=_lambda.Code.from_asset("EBlambda/"),
@@ -141,13 +136,13 @@ class MyCdkStack(cdk.Stack):
         # Add Lambda as the target of the EventBridge rule
         self.event_rule.add_target(targets.LambdaFunction(self.lambda_function))  
 
-        # -----------------Knowledge base Context lambda----------------------
+        # -----------------Pinecone Knowledge base Context lambda----------------------
 
         # Lambda_function to store knowledge base
         self.context_lambda_function = _lambda.Function(
             self,
             "ContextLambda",
-            function_name="ContextLambda",
+            function_name=CONTEXT_LAMBDA_FUNCTION_NAME,
             runtime=_lambda.Runtime.PYTHON_3_12,
             handler="AV_data.lambda_handler",
             code=_lambda.Code.from_asset("Contextlambda/"),

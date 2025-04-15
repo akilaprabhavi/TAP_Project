@@ -1,19 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import './category-page.css';
 
-const defaultVectors = [
-  { attackVector: 'Phishing Email' },
-  { attackVector: 'Ransomware' },
-  { attackVector: 'Malware' },
-  { attackVector: 'denial-of-service (DoS)' },
-  { attackVector: 'Supply Chain Attack' },
-  { attackVector: 'Zero-day Exploits' },
-  { attackVector: 'SQL Injection' },
-];
-
 const AttackVectors = () => {
-  const [threatData, setThreatData] = useState(defaultVectors);
-  const [loadingStates, setLoadingStates] = useState({});
+  const [threatData, setThreatData] = useState([]);
   const [error, setError] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
 
@@ -22,15 +11,9 @@ const AttackVectors = () => {
       try {
         const res = await fetch('https://ulaq2p5pomaufimwt3pfxr3tpa0szfux.lambda-url.us-east-1.on.aws/all-threats');
         if (!res.ok) throw new Error('Failed to fetch threat data');
-        const data = await res.json();
-  
-        // Map defaults with new threat data
-        const mergedData = defaultVectors.map((defaultItem) => {
-          const match = data.find((item) => item.attackVector === defaultItem.attackVector);
-          return match ? { ...defaultItem, ...match } : defaultItem;
-        });
-  
-        setThreatData(mergedData);
+        const data = await res.json();  
+   
+        setThreatData(data);
       } catch (err) {
         console.error(err);
         setError(err.message);

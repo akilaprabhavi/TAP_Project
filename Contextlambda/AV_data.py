@@ -58,7 +58,6 @@ def get_embedding(text: str, client: OpenAI) -> list:
 
 # === Lambda Handler ===
 def lambda_handler(event, context):
-    print("Lambda execution started.")
 
     # Retrieve API keys securely
     pc_api_key = get_secret(PC_Secret_name, PC_key_name)
@@ -68,7 +67,7 @@ def lambda_handler(event, context):
     # Initialize OpenAI client
     client = OpenAI(api_key=openai_api_key)
 
-    # Setup Pinecone
+    # Setup Pinecone index
     pc = pinecone.Pinecone(api_key=pc_api_key)
     if INDEX_N not in pc.list_indexes().names():
         pc.create_index(
@@ -82,7 +81,6 @@ def lambda_handler(event, context):
     # AlienVault data retrieval
     alienvault_api = AlienVaultAPI(api_key=av_api_key)
     pulses = alienvault_api.get_subscribed_pulses()
-    print(f"Retrieved {len(pulses)} pulses.")
 
     vectors = []
     for pulse in pulses:
