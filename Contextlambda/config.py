@@ -12,7 +12,7 @@ PROMPT_BUCKET_NAME = "promptbucketakila"
 WEBSITE_BUCKET_NAME="websitebucketakila"
 CSV_FILE_NAME = "user_prompts"
 IAM_ROLE_NAME = "LambdaS3AccessRole"
-DYNAMO_DB_TABLE="AttackVectors"
+DYNAMO_DB_TABLE="AttackVectorsData"
 
 AV_URl="https://otx.alienvault.com/api/v1"
 PC_REGION="us-east-1"
