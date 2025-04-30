@@ -7,9 +7,10 @@ from aws_cdk import (
     aws_s3_deployment as s3_deployment,
     aws_events as events,
     aws_events_targets as targets,
+    aws_dynamodb as dynamodb,
     Duration,
     CfnOutput,
-    RemovalPolicy    
+    RemovalPolicy
 )
 from constructs import Construct
 from aws_cdk.aws_lambda import FunctionUrlAuthType
@@ -22,12 +23,12 @@ class MyCdkStack(cdk.Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        #------------------ BE deployment-----------------------
+        # ------------------ BE deployment -----------------------
 
-          #IAM role for Lambda_function
+        # IAM role for Lambda_function
         self.lambda_role = iam.Role(
             self, "LambdaExecutionRole",
-            role_name="MyLambdaExecutionRole", 
+            role_name="MyLambdaExecutionRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
@@ -37,7 +38,7 @@ class MyCdkStack(cdk.Stack):
         # Add Secrets Manager permission as an inline policy
         self.lambda_role.add_to_policy(iam.PolicyStatement(
             actions=["secretsmanager:GetSecretValue"],
-            resources=["*"] 
+            resources=["*"]
         ))
 
         # Allow Lambda to put, get, and list objects in the S3 bucket
@@ -61,6 +62,31 @@ class MyCdkStack(cdk.Stack):
             ],
             resources=["arn:aws:dynamodb:us-east-1:713881796790:table/AttackVectorsData"]
         ))
+    
+
+        # Allow Lambda to get items from DynamoDB
+        self.lambda_role3.add_to_policy(iam.PolicyStatement(
+            actions=[
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:BatchGetItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:CreateTable",
+                "dynamodb:DeleteItem",
+                "dynamodb:DeleteTable",
+                "dynamodb:DescribeTable",
+                "dynamodb:PutItem",
+                "dynamodb:Query",
+                "dynamodb:UpdateItem",
+                "dynamodb:UpdateTable",
+                "dynamodb:DescribeTable",
+                "dynamodb:ListTables"
+            ],
+            resources=[
+                "arn:aws:dynamodb:us-east-1:713881796790:table/ThreatPulses",
+                "arn:aws:dynamodb:us-east-1:713881796790:table/ThreatPulses/*"
+            ]
+        ))
 
 
         # Reference the existing ECR repository
@@ -76,45 +102,84 @@ class MyCdkStack(cdk.Stack):
             timeout=Duration.seconds(30),
         )
 
-        # Create a Lambda Function URL(publicly accessible)
+        # Create a Lambda Function URL (publicly accessible)
         function_url = flask_lambda.add_function_url(auth_type=FunctionUrlAuthType.NONE)
-               
-        #-------------------FE deployment -------------------------
-           
-        # S3 Website for CRA Build       
+
+        # ------------------- FE deployment -------------------------
+
         website_bucket = s3.Bucket(self, "WebsiteBucket",
-            bucket_name=WEBSITE_BUCKET_NAME,                  
+            bucket_name=WEBSITE_BUCKET_NAME,
             website_index_document="index.html",
             website_error_document="index.html",
             block_public_access=s3.BlockPublicAccess(block_public_policy=False, restrict_public_buckets=False),
             public_read_access=True,
-            removal_policy=RemovalPolicy.DESTROY, 
+            removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True
         )
 
-        # Deploy static website content from the CRA build output
-        s3_deployment.BucketDeployment(self, "DeployWebsite",
-            sources=[s3_deployment.Source.asset("Dashboard/build")],
-            destination_bucket=website_bucket      
+        # ---------------- DynamoDB Table ----------------
+        self.threat_pulses_table = dynamodb.Table(
+            self, "ThreatPulsesTable",
+            table_name="ThreatPulses",
+            partition_key=dynamodb.Attribute(
+                name="id",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY
         )
 
-        # -----------------------CloudFormation Outputs------------------
+        # ----------------- Other resources ----------------------
+
+        prompt_bucket_name = "promptbucketakila"
+        self.prompt_bucket = s3.Bucket(
+            self, "promptbucket",
+            bucket_name=prompt_bucket_name,
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+            auto_delete_objects=True
+        )
+
+        # Grant permissions to access DynamoDB
+        self.threat_pulses_table.grant_read_write_data(self.lambda_role3)
+
+        # ---------------- Scheduled Threat Sync Lambda ----------------
+        self.my_threat_updater = _lambda.Function(
+            self,
+            "MyThreatUpdaterLambda",
+            function_name="MyThreatUpdater",
+            runtime=_lambda.Runtime.PYTHON_3_12,
+            handler="auto_threat_sync.lambda_handler",
+            code=_lambda.Code.from_asset("threat_updater_lambda/"),
+            role=self.lambda_role3,  # <--- updated
+            timeout=cdk.Duration.seconds(30),
+            environment={
+                "DYNAMODB_TABLE_NAME": self.threat_pulses_table.table_name,
+            }
+        )
+
+        self.my_midnight_rule = events.Rule(
+            self,
+            "MidnightThreatSyncRule",
+            rule_name="MidnightThreatSyncRule",
+            schedule=events.Schedule.expression("cron(0 0 * * ? *)")  # Midnight UTC
+        )
+
+        self.my_midnight_rule.add_target(targets.LambdaFunction(self.my_threat_updater))
+
+
+
+        self.event_rule_threat_update = events.Rule(
+            self, "ThreatAutoSyncSchedule",
+            schedule=events.Schedule.expression("cron(0 * * * ? *)")
+        )
+
+        self.event_rule_threat_update.add_target(targets.LambdaFunction(self.my_threat_updater))
+
+        # ----------------------- CloudFormation Outputs ------------------
         CfnOutput(self, "LambdaPublicUrl", value=function_url.url, export_name="LambdaPublicUrl")
         CfnOutput(self, "S3WebsiteUrl", value=website_bucket.bucket_website_url, export_name="S3WebsiteUrl")
 
-        # -----------------Other resources----------------------
-
-        # s3 bucket to store prompts
-        prompt_bucket_name = PROMPT_BUCKET_NAME 
-
-        self.prompt_bucket = s3.Bucket(
-                self, "promptbucket",
-                bucket_name=prompt_bucket_name,
-                removal_policy=cdk.RemovalPolicy.DESTROY, 
-                auto_delete_objects=True
-            )
-                       
-        # Lambda_function to execute predefined prompts
+        # ---------------- Lambda function for scheduled execution ----------------
         self.lambda_function = _lambda.Function(
             self,
             "ChatGPTThreatAnalysis",
@@ -125,20 +190,17 @@ class MyCdkStack(cdk.Stack):
             role=self.lambda_role,
             timeout=cdk.Duration.seconds(60)
         )
-        
-        # EventBridge rule to trigger lambda
+
         self.event_rule = events.Rule(
             self, "LambdaScheduleRule",
-            rule_name="ThreatAnalysisTriggerRule",  
+            rule_name="ThreatAnalysisTriggerRule",
             schedule=events.Schedule.expression("cron(0 9 * * ? *)")
-        )       
+        )
 
-        # Add Lambda as the target of the EventBridge rule
-        self.event_rule.add_target(targets.LambdaFunction(self.lambda_function))  
+        self.event_rule.add_target(targets.LambdaFunction(self.lambda_function))
 
-        # -----------------Pinecone Knowledge base Context lambda----------------------
+        # ---------------- Pinecone Knowledge base Context lambda ----------------
 
-        # Lambda_function to store knowledge base
         self.context_lambda_function = _lambda.Function(
             self,
             "ContextLambda",
@@ -149,16 +211,15 @@ class MyCdkStack(cdk.Stack):
             role=self.lambda_role,
             timeout=cdk.Duration.seconds(60)
         )
-        
-        # EventBridge rule to trigger Contextlambda 
+
         self.event_rule2 = events.Rule(
             self, "ContextLambdaScheduleRule",
-            rule_name="ContextTriggerRule",  
+            rule_name="ContextTriggerRule",
             schedule=events.Schedule.expression("cron(0 * * * ? *)")
-        ) 
+        )
 
-        # Add contextLambda as the target of the EventBridge rule
-        self.event_rule2.add_target(targets.LambdaFunction(self.context_lambda_function))       
+        self.event_rule2.add_target(targets.LambdaFunction(self.context_lambda_function))
+
 
 app = cdk.App()
 MyCdkStack(app, "MyCdkStack")
